@@ -40,20 +40,10 @@ def extract_spectrogram(video_list, path):
         sample_rate = audio.fps
         audio_data = audio.to_soundarray()
         print(audio_data.shape)
+
+        # NOT SURE IF THIS IS FAST AND EFFICIENT FOR SPECTROGRAM DATA
+        # SO I AM JUST SAVING THE RAW AUDIO INTO A NUMPY ARRAY
         # spectrogram visualization
-        NFFT = sample_rate / 25
-
-        fig, ax = plt.subplots(figsize=(14, 4))
-        spectrum, freqs, time, im = ax.specgram(audio_data.mean(axis=1), 
-                                                            NFFT=NFFT,
-                                                            pad_to=4096, 
-                                                            Fs=sample_rate, 
-                                                            noverlap=512, 
-                                                            mode='magnitude', 
-                                                            cmap='inferno')
-        fig.colorbar(im)
-
-        print('spectrum: {}\nfreqs: {}\ntime: {}'.format(spectrum, freqs, time))
 
         if not os.path.exists('../output/video_{}'.format(i)):
             os.mkdir('../output/video_{}'.format(i))
