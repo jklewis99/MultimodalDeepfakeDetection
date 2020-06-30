@@ -26,12 +26,13 @@ def extract_frames(video_list, path):
             if not success:
                 # we have reached the end of the video
                 break
-
-            cv.imwrite('../output/video_{}/frame_{}.png'.format(i, count), frame)
+            frame_ft = fourier_tranform(frame, '')
+            # cv.imwrite('../output/video_{}/frame_{}.png'.format(i, count), frame)
+            cv.imwrite('../output/video_{}/fourier_frame_{}.png'.format(i, count), frame_ft)
+            plt.savefig('../output/video_{}/1D_power_spectrum_frame_{}.png'.format(i, count))
             capture.set(1, count)
             count += incr
-        if i < 1:
-            break
+        break
 
 def extract_spectrogram(video_list, path):
     for i in range(len(video_list)):
@@ -39,7 +40,6 @@ def extract_spectrogram(video_list, path):
         audio = video_file.audio
         sample_rate = audio.fps
         audio_data = audio.to_soundarray()
-        print(audio_data.shape)
 
         # NOT SURE IF THIS IS FAST AND EFFICIENT FOR SPECTROGRAM DATA
         # SO I AM JUST SAVING THE RAW AUDIO INTO A NUMPY ARRAY
@@ -70,6 +70,58 @@ def get_meta_from_json(path, json_file):
     df = df.T
     return df
 
+def fourier_tranform(img, dest):
+    img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    # need to ensure log0 is not used
+    epsilon = 1e-8
+
+    ft = np.fft.fft2(img)
+    fshift = np.fft.fftshift(ft) + epsilon
+
+    # scale the magnitudes to better distribution
+    magnitude_spectrum = 20*np.log(np.abs(fshift))
+    
+    one_dim_power_spectrum = azimuthal_average(magnitude_spectrum)
+    return magnitude_spectrum
+    # eventually, we want to return this as a tensor
+    # return one_dim_power_spectrum
+
+def azimuthal_average(img):
+    # get the indices of the image
+    height, width = np.indices(img.shape)
+
+    center = np.array([(width.max() - width.min()) / 2, (height.max() - height.min()) / 2])
+
+    # returns an array of the length of each radius from center to corner
+    radius = np.hypot(width - center[0], height - center[1])
+    np.hypot
+    # sorts the ____
+    indices = np.argsort(radius.flat)
+    radius_sorted = radius.flat[indices]
+    image_sorted = img.flat[indices]
+
+    # convert radius to integer (will get check only one pixel in radial bin per radius length)
+    radius_int = radius_sorted.astype(int)
+
+    # find all the pixels in the radial bin
+    delta_r = radius_int[1:] - radius_int[:-1]  # assumes all radii are represented
+    radius_idx = np.where(delta_r)[0]           # location of changed radius
+    num_radius_bin = radius_idx[1:] - radius_idx[:-1]       # number of radius bin
+
+    # Cumulative sum to figure out sums for each radius bin
+    cumulative_sum = np.cumsum(image_sorted, dtype=float)
+    total_bin = cumulative_sum[radius_idx[1:]] - cumulative_sum[radius_idx[:-1]]
+
+    radial_profile = total_bin / num_radius_bin
+
+    visualize_radial_spectrum(radial_profile)
+    return radial_profile
+
+def visualize_radial_spectrum(radial_profile):
+    t = np.arange(0, len(radial_profile))
+    return plt.plot(t, radial_profile)
+
+
 def main():
     train_list = list(os.listdir(os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER)))
 
@@ -79,7 +131,7 @@ def main():
     meta_train_df.head()
 
     fake_train_sample_video = list(
-        meta_train_df.loc[meta_train_df.label == 'FAKE'].sample(3).index)
+        meta_train_df.loc[meta_train_df.label == 'FAKE'].index)
 
     extract_spectrogram(fake_train_sample_video, os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER))
     extract_frames(fake_train_sample_video, os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER))
