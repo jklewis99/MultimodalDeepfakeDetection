@@ -71,7 +71,7 @@ def get_meta_from_json(path, json_file):
     return df
 
 def fourier_tranform(img, dest):
-    img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    # img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     # need to ensure log0 is not used
     epsilon = 1e-8
 
@@ -80,9 +80,8 @@ def fourier_tranform(img, dest):
 
     # scale the magnitudes to better distribution
     magnitude_spectrum = 20*np.log(np.abs(fshift))
-    
     one_dim_power_spectrum = azimuthal_average(magnitude_spectrum)
-    return magnitude_spectrum
+    return one_dim_power_spectrum
     # eventually, we want to return this as a tensor
     # return one_dim_power_spectrum
 
@@ -114,13 +113,45 @@ def azimuthal_average(img):
 
     radial_profile = total_bin / num_radius_bin
 
-    visualize_radial_spectrum(radial_profile)
+    # visualize_radial_spectrum(radial_profile)
     return radial_profile
 
 def visualize_radial_spectrum(radial_profile):
     t = np.arange(0, len(radial_profile))
     return plt.plot(t, radial_profile)
 
+def stride_search(img, target_size=(128, 128)):
+    '''
+    A method to loop through an image and search the image for faces by tiling with overlaps
+
+    img - the original image on which we want to find the face
+    target_size - desired width and height of the output image (the input size for blazeface)
+
+    split landscape video into three overlapping frames of size height, unless video is
+    in portrait mode, then only take top of image
+    '''
+
+    height, width, _ = img.shape
+
+    split_size = min(height, width) # size of each tile
+    x_step = (width - split_size) // 2  # amount to move horizontally
+    y_step = (height - split_size) // 2  # amount to move vertically
+    num_v = 1                       # number of tiles in vertical direction
+    num_h = 3 if width > height else 1       # number of tiles in horizontal direction
+
+    # array that contains the resized tiles
+    tiles = np.zeros((num_v * num_h, target_size[1], target_size[0], 3), dtype=np.uint8)
+    i = 0
+    for tile_row in range(num_v):
+        tile_start_y = tile_row * y_step
+        for tile_col in range(num_h):
+            tile_start_x = tile_col * x_step
+            tile = img[tile_start_y : tile_start_y + split_size, tile_start_x : tile_start_x + split_size]
+            tiles[i] = cv.resize(tile, target_size, interpolation=cv.INTER_AREA)
+            i+=1
+
+    resize_info = [split_size / target_size[0], split_size / target_size[1], 0, 0]
+    return tiles, resize_info
 
 def main():
     train_list = list(os.listdir(os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER)))

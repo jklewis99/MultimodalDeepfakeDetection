@@ -23,8 +23,10 @@ for spectrogram in spectrograms_list:
                                                         Fs=sample_rate, 
                                                         noverlap=512, 
                                                         mode='magnitude', 
-                                                        cmap='inferno')
+                                                        cmap='Greys')
     print('spectrum: {}\nfreqs: {}\ntime: {}'.format(spectrum, freqs, time))
+    plt.xlabel('Time (s)')
+    plt.ylabel('Frequency (Hz)')
     fig.colorbar(im)
     plt.show()
 
