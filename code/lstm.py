@@ -15,20 +15,27 @@ import pickle
 DATA_FOLDER = '../input/deepfake-detection-challenge'
 TRAIN_SAMPLE_FOLDER = 'train_sample_videos'
 TEST_FOLDER = 'test_videos'
-gpu = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-NET = BlazeFace().to(gpu)
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+NET = BlazeFace().to(device)
 NET.load_weights("../input/blazeface.pth")
 NET.load_anchors("../input/anchors.npy")
 
 
 class MyLSTM(nn.Module):
-    def __init__(self):
+    def __init__(self, num_layers=2, num_hidden_nodes=512):
         super(MyLSTM, self).__init__()
+        self.num_layers = num_layers
+        self.num_hidden_nodes = num_hidden_nodes
+
         # input dim is 167, output 200
-        self.lstm = nn.LSTM(167, 200, batch_first=True)
-        self.fc1 = nn.Linear(200, 200)                  # fully connected
+        self.lstm = nn.LSTM(167, num_hidden_nodes,
+                            batch_first=True, num_layers=num_layers)
+        # fully connected
+        self.fc1 = nn.Linear(num_hidden_nodes, num_hidden_nodes)
         self.act = nn.Sigmoid()
-        self.fc2 = nn.Linear(200, 2)
+        self.fc2 = nn.Linear(num_hidden_nodes, 2)
         self.softmax = nn.Softmax()
 
     def forward(self, x, hidden):
@@ -42,8 +49,8 @@ class MyLSTM(nn.Module):
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters()).data
-        hidden = (weight.new(1, batch_size, 200).zero_(),
-                  weight.new(1, batch_size, 200).zero_())
+        hidden = (weight.new(self.num_layers, batch_size, self.num_hidden_nodes).zero_(),
+                  weight.new(self.num_layers, batch_size, self.num_hidden_nodes).zero_())
         return hidden
 
 
@@ -245,27 +252,15 @@ def convert_scores(label):
 
 
 def train(training_data):
-    batch_size = 69
+    batch_size = 69  # nice
     model = MyLSTM()
     loss_function = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.1)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     training_data = FourierDataset(training_data)
     trainloader = DataLoader(
         training_data, batch_size=batch_size, shuffle=True)
 
-    for data in trainloader:
-        inp, label = data
-        print(inp.shape, label.shape)
-
     hidden = model.init_hidden(batch_size)
-
-    # See what the scores are before training
-    # Note that element i,j of the output is the score for tag j for word i.
-    # Here we don't need to train, so the code is wrapped in torch.no_grad()
-    with torch.no_grad():
-        sequence, labels = next(iter(trainloader))
-        tag_scores = model(sequence.float(), hidden)
-        print(tag_scores)
 
     print_every = 10
 
@@ -274,29 +269,23 @@ def train(training_data):
         running_loss = 0.0
         running_acc = 0.0
         i = 0
-        for sequence, labels in trainloader:
+        for inp, labels in trainloader:  # renamed sequence to inp because inp is a batch of sequences
             # Step 1. Remember that Pytorch accumulates gradients.
             # We need to clear them out before each instance
-            sequence = sequence.float()
-
             model.zero_grad()
 
-            # Step 2. Get our inputs ready for the network, that is, turn the azimuthal average
-            # graph into Tensors
+            inp = inp.float()
+            # Step 2. Run our forward pass.
+            tag_scores, h = model(inp, hidden)
 
-            # Step 3. Run our forward pass.
-            tag_scores, h = model(sequence, hidden)
-
-            # Step 4. Compute the loss, gradients, and update the parameters by
-            #  calling optimizer.step()
-            # print(tag_scores, '\n\n\n', target, '\n\n')
-            # print('tag', tag_scores, 'labels', labels)
+            # Step 3. Compute the loss, gradients, and update the parameters by
+            # calling optimizer.step()
             loss = loss_function(tag_scores, labels)
             loss.backward()
             optimizer.step()
 
-            running_acc += (torch.sum((tag_scores.argmax(dim=1)
-                                       == labels).float()).item() / 100)
+            running_acc += torch.mean((tag_scores.argmax(dim=1)
+                                       == labels).float()).item()
 
             # print statistics
             running_loss += loss.item()
@@ -306,19 +295,6 @@ def train(training_data):
                 running_loss = 0.0
                 running_acc = 0.0
             i += 1
-
-    # See what the scores are after training
-    with torch.no_grad():
-        sequence, labels = next(iter(trainloader))
-        tag_scores = model(sequence, hidden)
-        print(tag_scores)
-
-    # print('finished training')
-    # print('Testing on one of the things:')
-    # print(len(training_data))
-    # example = training_data[0]
-    # print('Video: ', example[2], 'Label: ', example[0])
-    # print('Our guess:', model(FourierDataset(example[1])[:], hidden))
 
 
 def main():
