@@ -20,18 +20,20 @@ NET = BlazeFace().to(gpu)
 NET.load_weights("../input/blazeface.pth")
 NET.load_anchors("../input/anchors.npy")
 
+
 class MyLSTM(nn.Module):
     def __init__(self):
         super(MyLSTM, self).__init__()
-        self.lstm = nn.LSTM(167, 200, batch_first=True) # input dim is 167, output 200
+        # input dim is 167, output 200
+        self.lstm = nn.LSTM(167, 200, batch_first=True)
         self.fc1 = nn.Linear(200, 200)                  # fully connected
         self.act = nn.Sigmoid()
-        self.fc2 = nn.Linear(200, 2)   
-        self.softmax = nn.Softmax() 
+        self.fc2 = nn.Linear(200, 2)
+        self.softmax = nn.Softmax()
 
     def forward(self, x, hidden):
         y, hidden = self.lstm(x, hidden)    # returns the two outputs
-        y = y[:, -1, :] # get only the last output
+        y = y[:, -1, :]  # get only the last output
         y = self.fc1(y)
         y = self.fc2(y)
         y = F.softmax(y, dim=1)
@@ -45,35 +47,33 @@ class MyLSTM(nn.Module):
         return hidden
 
 
-
 class FourierDataset(Dataset):
     def __init__(self, data):
         """
         data: a list of (label: string, fourier_data: numpy array, name: string)
-    
+
         """
         self.data = []
         for elt in data:
             label, spects, name = elt
-            label = torch.tensor(0 if label=='FAKE' else 1)
+            label = torch.tensor(0 if label == 'FAKE' else 1)
 
-            # Moving window sequence generation without overalap 
+            # Moving window sequence generation without overalap
             # other ideas: 1. Random sampling, 2. Moving qindow with overlap
             # this data will be shuffled
             for i in range(0, 24 * (spects.shape[0] // 24), 24):
                 spect = torch.tensor(spects[i:i+24, :])
                 self.data.append((spect, label))
 
-    
     def __getitem__(self, idx):
-        return self.data[idx] # spect (24, 167), label (2)
+        return self.data[idx]  # spect (24, 167), label (2)
 
     def __len__(self):
         return len(self.data)
 
 
-sequence = 24 # 1 sec of video
-feature_size = 167 # length of spatial frequency
+sequence = 24  # 1 sec of video
+feature_size = 167  # length of spatial frequency
 
 
 def read_video(filename):
@@ -81,26 +81,30 @@ def read_video(filename):
     success, image = vidcap.read()
     count = 0
     images = []
-    
+
     while success:
         tiles, resize_info = stride_search(image)
         detections = NET.predict_on_image(tiles[1])
-        blazeface_endpoints = get_face_endpoints(tiles[1], detections)[0] # take the first face only
+        blazeface_endpoints = get_face_endpoints(tiles[1], detections)[
+            0]  # take the first face only
         # we need to resize them on the original image and get the amount shifted to prevent negative values
-        split_size = 128 * resize_info[1]               # in this case it will be 1080
-        x_shift = (image.shape[1] - split_size) // 2    # determine how much we shifted for this tile
-        face_endpoints = (int(blazeface_endpoints[0] * resize_info[0]), 
-                          int(blazeface_endpoints[1] * resize_info[0] + x_shift), 
-                          int(blazeface_endpoints[2] * resize_info[0]), 
+        # in this case it will be 1080
+        split_size = 128 * resize_info[1]
+        # determine how much we shifted for this tile
+        x_shift = (image.shape[1] - split_size) // 2
+        face_endpoints = (int(blazeface_endpoints[0] * resize_info[0]),
+                          int(blazeface_endpoints[1] *
+                              resize_info[0] + x_shift),
+                          int(blazeface_endpoints[2] * resize_info[0]),
                           int(blazeface_endpoints[3] * resize_info[0] + x_shift))
         # next we need to expand the rectangle to be 240, 240 pixels (for this training example)
         #   we can do this equally in each direction, kind of
         face_width = face_endpoints[3] - face_endpoints[1]
         face_height = face_endpoints[2] - face_endpoints[0]
         buffer = 20
-        face_box = image[max(0, face_endpoints[0] - buffer) : min(face_endpoints[2] + buffer, image.shape[0]),
-                         max(0, face_endpoints[1] - buffer) : min(face_endpoints[3] + buffer, image.shape[1])]
-        # print(face_box.shape) # almost a square or very close to it 
+        face_box = image[max(0, face_endpoints[0] - buffer): min(face_endpoints[2] + buffer, image.shape[0]),
+                         max(0, face_endpoints[1] - buffer): min(face_endpoints[3] + buffer, image.shape[1])]
+        # print(face_box.shape) # almost a square or very close to it
         face = cv2.resize(face_box, (240, 240))
         images.append(face)
         # cv2.imshow("face", face)
@@ -111,6 +115,7 @@ def read_video(filename):
     if images:
         return np.stack(images)
 
+
 def get_spects(vid):
 
     spects = []
@@ -120,41 +125,45 @@ def get_spects(vid):
 
     return np.stack(spects)
 
+
 def get_face_endpoints(img, detections, with_keypoints=False):
     if isinstance(detections, torch.Tensor):
-        detections=detections.cpu().numpy()
+        detections = detections.cpu().numpy()
 
     if detections.ndim == 1:
-        detections=np.expand_dims(detections, axis=0)
+        detections = np.expand_dims(detections, axis=0)
 
     # print("Found %d face(s)" % detections.shape[0])
     # print('Face endpoints on 128x128 image:')
     detected_faces_endpoints = []
 
-    for i in range(detections.shape[0]): # dependent on number of faces found
-        ymin=detections[i, 0] * img.shape[0]
-        xmin=detections[i, 1] * img.shape[1]
-        ymax=detections[i, 2] * img.shape[0]
-        xmax=detections[i, 3] * img.shape[1]
+    for i in range(detections.shape[0]):  # dependent on number of faces found
+        ymin = detections[i, 0] * img.shape[0]
+        xmin = detections[i, 1] * img.shape[1]
+        ymax = detections[i, 2] * img.shape[0]
+        xmax = detections[i, 3] * img.shape[1]
 
         detected_faces_endpoints.append((ymin, xmin, ymax, xmax))
-        
-        cv2.rectangle(img, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (0, 0, 255), 2)
+
+        cv2.rectangle(img, (int(xmin), int(ymin)),
+                      (int(xmax), int(ymax)), (0, 0, 255), 2)
 
         if with_keypoints:
             for k in range(6):
-                kp_x=detections[i, 4 + k*2] * img.shape[1]
-                kp_y=detections[i, 4 + k*2 + 1] * img.shape[0]
-                circle=patches.Circle((kp_x, kp_y), radius = 0.5, linewidth = 1,
-                                        edgecolor = "lightskyblue", facecolor = "none",
-                                        alpha = detections[i, 16])
+                kp_x = detections[i, 4 + k*2] * img.shape[1]
+                kp_y = detections[i, 4 + k*2 + 1] * img.shape[0]
+                circle = patches.Circle((kp_x, kp_y), radius=0.5, linewidth=1,
+                                        edgecolor="lightskyblue", facecolor="none",
+                                        alpha=detections[i, 16])
                 # ax.add_patch(circle)
 
     return detected_faces_endpoints
 
+
 def prepare_data():
     # Here we check the train data files extensions.
-    train_list = list(os.listdir(os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER)))
+    train_list = list(os.listdir(
+        os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER)))
     ext_dict = []
     for file in train_list:
         file_ext = file.split('.')[1]
@@ -193,14 +202,16 @@ def prepare_data():
     training_data = []
     for video_file in fake_train_sample_video:
         try:
-            data = process_video_data(os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER, video_file))
-            training_data.append(('FAKE', data, video_file))# (X, 24, 167)
+            data = process_video_data(os.path.join(
+                DATA_FOLDER, TRAIN_SAMPLE_FOLDER, video_file))
+            training_data.append(('FAKE', data, video_file))  # (X, 24, 167)
         except:
             continue
 
     for video_file in real_train_sample_video:
         try:
-            data = process_video_data(os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER, video_file))
+            data = process_video_data(os.path.join(
+                DATA_FOLDER, TRAIN_SAMPLE_FOLDER, video_file))
             training_data.append(('REAL', data, video_file))
         except:
             continue
@@ -212,21 +223,26 @@ def prepare_data():
 
     return training_data
 
+
 def read_data():
     with open("train_data.txt", "rb") as fp:   # Unpickling
         training_data = pickle.load(fp)
     return training_data
+
 
 def process_video_data(video_file):
     stack = read_video(video_file)
     stack = stack.mean(axis=-1) / 255
     return get_spects(stack)
 
+
 def prepare_spect(spect):
     return torch.tensor(spect)
 
+
 def convert_scores(label):
     return torch.tensor([1, 0]) if label == 'FAKE' else torch.tensor([0, 1])
+
 
 def train(training_data):
     batch_size = 69
@@ -234,8 +250,9 @@ def train(training_data):
     loss_function = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.1)
     training_data = FourierDataset(training_data)
-    trainloader = DataLoader(training_data, batch_size=batch_size, shuffle=True)
-    
+    trainloader = DataLoader(
+        training_data, batch_size=batch_size, shuffle=True)
+
     for data in trainloader:
         inp, label = data
         print(inp.shape, label.shape)
@@ -249,11 +266,11 @@ def train(training_data):
         sequence, labels = next(iter(trainloader))
         tag_scores = model(sequence.float(), hidden)
         print(tag_scores)
-    
+
     print_every = 10
 
     for epoch in range(100):  # again, normally you would NOT do 100 epochs, it is toy data
-        
+
         running_loss = 0.0
         running_acc = 0.0
         i = 0
@@ -278,16 +295,17 @@ def train(training_data):
             loss.backward()
             optimizer.step()
 
-            running_acc += (torch.sum((tag_scores.argmax(dim=1) == labels).float()).item() / 100)
+            running_acc += (torch.sum((tag_scores.argmax(dim=1)
+                                       == labels).float()).item() / 100)
 
             # print statistics
             running_loss += loss.item()
             if i % print_every == print_every-1:
                 print('[%d, %5d] loss: %.3f - acc: %.3f' %
-                    (epoch + 1, i + 1, running_loss / print_every, running_acc * 100 / print_every))
+                      (epoch + 1, i + 1, running_loss / print_every, running_acc * 100 / print_every))
                 running_loss = 0.0
                 running_acc = 0.0
-            i+=1
+            i += 1
 
     # See what the scores are after training
     with torch.no_grad():
@@ -301,6 +319,7 @@ def train(training_data):
     # example = training_data[0]
     # print('Video: ', example[2], 'Label: ', example[0])
     # print('Our guess:', model(FourierDataset(example[1])[:], hidden))
+
 
 def main():
     # prepare_data()
@@ -320,6 +339,7 @@ def main():
     '''
     training_data = read_data()
     train(training_data)
+
 
 if __name__ == '__main__':
     main()
