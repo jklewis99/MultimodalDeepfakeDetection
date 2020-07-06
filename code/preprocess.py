@@ -5,73 +5,63 @@ from matplotlib import pyplot as plt
 from moviepy.editor import *
 from moviepy.video.io.bindings import mplfig_to_npimage
 import numpy as np
+from scipy import signal
 
 DATA_FOLDER = '../input/deepfake-detection-challenge'
 TRAIN_SAMPLE_FOLDER = 'train_sample_videos'
 TEST_FOLDER = 'test_videos'
 
-def extract_frames(video_list, path):
+def extract_frames(file_name, path, dest):
+    '''
+    a preprocessing method that converts the frames of the input video into image files
 
-    for i in range(len(video_list)):
-        video_file = video_list[i]
-        capture = cv.VideoCapture(os.path.join(path, video_file))
-        count = 0
-        incr = 4
-        if not os.path.exists('../output/video_{}'.format(i)):
-            os.mkdir('../output/video_{}'.format(i))
-        
-        # write every {incr} frames to a new folder for each video
-        while capture.isOpened():
-            success, frame = capture.read()
-            if not success:
-                # we have reached the end of the video
-                break
-            frame_ft = fourier_tranform(frame, '')
-            # cv.imwrite('../output/video_{}/frame_{}.png'.format(i, count), frame)
-            cv.imwrite('../output/video_{}/fourier_frame_{}.png'.format(i, count), frame_ft)
-            plt.savefig('../output/video_{}/1D_power_spectrum_frame_{}.png'.format(i, count))
-            capture.set(1, count)
-            count += incr
-        break
+    video_file: video file to be processed
+    path: directory from which the files are located
+    dest: directory to which the spectrogram numpy arrays will be saved
+    '''
 
-def extract_spectrogram(video_list, path):
-    for i in range(len(video_list)):
-        video_file = VideoFileClip(os.path.join(path, video_list[i]))
-        audio = video_file.audio
-        sample_rate = audio.fps
-        audio_data = audio.to_soundarray()
+    capture = cv.VideoCapture(os.path.join(path, file_name))
+    count = 0
+    incr = 25
+    
+    # write every {incr} frames to a new folder for each video
+    while capture.isOpened():
+        print('YOUOIJO')
+        success, frame = capture.read()
+        if not success:
+            # we have reached the end of the video
+            break
+        power_spectrum_1D = fourier_tranform(frame, '')
+        np.save('{}/{}/azimuthal_{}'.format(dest, file_name, count), power_spectrum_1D)
+        capture.set(1, count)
+        count += incr
 
-        # NOT SURE IF THIS IS FAST AND EFFICIENT FOR SPECTROGRAM DATA
-        # SO I AM JUST SAVING THE RAW AUDIO INTO A NUMPY ARRAY
-        # spectrogram visualization
+def extract_spectrogram(file_name, path, dest):
+    '''
+    a preprocessing method that takes the audio of the input video and converts the sample
+    into a numpy array defining the spectrogram of the sample
 
-        if not os.path.exists('../output/video_{}'.format(i)):
-            os.mkdir('../output/video_{}'.format(i))
-        np.save('../output/video_{}/spectrogram_{}'.format(i, i), audio_data)
-        break
+    video_list: array of videos for preprocessing
+    path: directory from which the files are located
+    dest: directory to which the spectrogram numpy arrays will be saved
+    '''
+    
+    video_file = VideoFileClip(os.path.join(path, file_name))
+    audio = video_file.audio
+    sample_rate = audio.fps
+    audio_sample = audio.to_soundarray()
+    audio_sample = audio_sample.mean(axis=1) # convert from stereo to mono
+    frequencies, times, spectrogram = signal.spectrogram(audio_sample, fs=sample_rate, nfft= sample_rate/25)
 
-def stft(sig, frameSize, overlapFac=0.5, window=np.hanning):
-    win = window(frameSize)
-    hopSize = int(frameSize - np.floor(overlapFac * frameSize))
+    np.save('{}/{}/{}'.format(dest, file_name, 'spectrogram'), spectrogram)
 
-    # zeros at beginning (thus center of 1st window should be for sample nr. 0)   
-    samples = np.append(np.zeros(int(np.floor(frameSize/2.0))), sig)    
-    # cols for windowing
-    cols = np.ceil( (len(samples) - frameSize) / float(hopSize)) + 1
-    # zeros at end (thus samples can be fully covered by frames)
-    samples = np.append(samples, np.zeros(frameSize))
-
-    frames = stride_tricks.as_strided(samples, shape=(int(cols), frameSize), strides=(samples.strides[0]*hopSize, samples.strides[0])).copy()
-    frames *= win
-
-    return np.fft.rfft(frames)    
 def get_meta_from_json(path, json_file):
     df = pd.read_json(os.path.join(DATA_FOLDER, path, json_file))
     df = df.T
     return df
 
 def fourier_tranform(img, dest):
-    # img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     # need to ensure log0 is not used
     epsilon = 1e-8
 
@@ -120,6 +110,17 @@ def visualize_radial_spectrum(radial_profile):
     t = np.arange(0, len(radial_profile))
     return plt.plot(t, radial_profile)
 
+def visualize_spectrogram(times, frequencies, spectrogram):
+    fig, ax = plt.subplots(figsize=(14, 4))
+    plt.xlabel('Time (s)')
+    plt.ylabel('Frequency (Hz)')
+    ax.set_title('SPECTROGRAM')
+    ax.pcolormesh(times, frequencies, 20*np.log(spectrogram), cmap='Greys')
+    plt.show()
+
+def load_spectrogram(path, file_name):
+    spectrogram_np = np.load(os.path.join(path, file_name))
+
 def stride_search(img, target_size=(128, 128)):
     '''
     A method to loop through an image and search the image for faces by tiling with overlaps
@@ -162,10 +163,14 @@ def main():
     meta_train_df.head()
 
     fake_train_sample_video = list(
-        meta_train_df.loc[meta_train_df.label == 'FAKE'].index)
+        meta_train_df.loc[meta_train_df.label == 'FAKE'].sample(3).index)
 
-    extract_spectrogram(fake_train_sample_video, os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER))
-    extract_frames(fake_train_sample_video, os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER))
+    dest = '../output'
+    for video_file in fake_train_sample_video:
+        if not os.path.exists('{}/{}'.format(dest, video_file)):
+            os.mkdir('{}/{}'.format(dest, video_file))
+        extract_spectrogram(video_file, os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER), dest)
+        extract_frames(video_file, os.path.join(DATA_FOLDER, TRAIN_SAMPLE_FOLDER), dest)
 
 if __name__ == '__main__':
     main()
