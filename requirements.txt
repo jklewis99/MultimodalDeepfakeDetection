@@ -1,0 +1,6 @@
+opencv-python
+pandas
+scipy
+moviepy
+pytorch
+face-alignment
