@@ -80,23 +80,32 @@ def transformation_from_points(points1, points2):
                       np.matrix([0., 0., 1.])])
 
 
+def read_video(filename):
+    """
+    returns list of arrays
+    """
+
+    cap = cv2.VideoCapture(filename)
+    array = []
+
+    while(True):
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        array.append(frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    return array
+
+
 def load_video(filename, device='cuda'):
-    p = tempfile.mkdtemp()
 
-    (
-        ffmpeg
-        .input(filename)
-        .output(f'{p}/%d.jpg')
-        .run()
-    )
-
-    files = os.listdir(p)
-    files = sorted(files, key=lambda x: int(os.path.splitext(x)[0]))
-
-    array = [cv2.imread(os.path.join(p, file)) for file in files]
-
-    array = list(filter(lambda im: not im is None, array))
-    # array = [cv2.resize(im, (100, 50), interpolation=cv2.INTER_LANCZOS4) for im in array]
+    array = read_video(filename)
+    print(f"Video is read. Number of frames: {len(array)}")
 
     fa = face_alignment.FaceAlignment(
         face_alignment.LandmarksType._2D, flip_input=False, device=device)
