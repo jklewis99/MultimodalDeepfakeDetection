@@ -102,18 +102,25 @@ def read_video(filename):
     return array
 
 
-def load_video(filename, device='cuda'):
+def load_video(filename, device='cuda', div=1):
 
     array = read_video(filename)
     print(f"Video is read. Number of frames: {len(array)}")
 
     fa = face_alignment.FaceAlignment(
-        face_alignment.LandmarksType._2D, flip_input=False, device=device)
-    points = [fa.get_landmarks(I) for I in array]
+        face_alignment.LandmarksType._2D, flip_input=False)
+    print(f"Face Aligment Network Loaded")
+
+    points = []
+    for I in array:
+        points.append(fa.get_landmarks(I[::div, ::div]))
+
+    print("Landmarks Detected")
 
     front256 = get_position(256)
     video = []
     for point, scene in zip(points, array):
+        point[0] = point[0] * div
         if(point is not None):
             shape = np.array(point[0])
             shape = shape[17:]
@@ -125,13 +132,12 @@ def load_video(filename, device='cuda'):
             w = 160//2
             img = img[y-w//2:y+w//2, x-w:x+w, ...]
             img = cv2.resize(img, (128, 64))
-            cv2.imshow('test', img)
             video.append(img)
 
     video = np.stack(video, axis=0).astype(np.float32)
     video = torch.FloatTensor(video.transpose(3, 0, 1, 2)) / 255.0
 
-    return video, p
+    return video
 
 
 def ctc_decode(y):
