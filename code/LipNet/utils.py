@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import face_alignment
 from dataset import PhonemeDataset
+import ffmpeg
 
 
 def get_position(size, padding=0.25):
@@ -79,11 +80,15 @@ def transformation_from_points(points1, points2):
                       np.matrix([0., 0., 1.])])
 
 
-def load_video(file, device='cuda'):
-    print(device)
+def load_video(filename, device='cuda'):
     p = tempfile.mkdtemp()
-    cmd = 'ffmpeg -i \'{}\' -qscale:v 2 -r 25 \'{}/%d.jpg\''.format(file, p)
-    os.system(cmd)
+
+    (
+        ffmpeg
+        .input(filename)
+        .output(p)
+        .run()
+    )
 
     files = os.listdir(p)
     files = sorted(files, key=lambda x: int(os.path.splitext(x)[0]))
