@@ -86,7 +86,7 @@ def load_video(filename, device='cuda'):
     (
         ffmpeg
         .input(filename)
-        .output(p)
+        .output(f'{p}/%d.jpg')
         .run()
     )
 
