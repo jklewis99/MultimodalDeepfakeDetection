@@ -29,5 +29,11 @@ def discrete_cosine_transform (imgsum, input):
             imgsum = imgsum + input[i, j] * math.cos(wangle) * math.cos(hangle)
             
     img = xi * xj * imgsum
+
+
+
+imgt = discrete_cosine_transform (0, input)
+imgplot = plt.imshow(imgt, cmap='gray')
+plt.show()
                 
             
