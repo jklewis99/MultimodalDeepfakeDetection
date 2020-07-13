@@ -289,7 +289,7 @@ def detect_landmarks(path, file_name, fa, folder_to_write):
 
                 # save each image in the correct folder
                 start = time.time()
-                cv2.imwrite(folder_to_write + r'/face_face{}_frame{}.jpg'.format(i, frame_num), orig_frame[int(face_box[1]*resize_info[1]):int(face_box[3]*resize_info[1]),                                                                                              int(face_box[0]*resize_info[0]):int(face_box[2]*resize_info[0]), :])
+                cv2.imwrite(folder_to_write + r'/face_face{}_frame{}.jpg'.format(i, frame_num), face)                                                                                             int(face_box[0]*resize_info[0]):int(face_box[2]*resize_info[0]), :])
                 cv2.imwrite(folder_to_write + r'/eye1_face{}_frame{}.jpg'.format(i, frame_num), eye1)
                 cv2.imwrite(folder_to_write + r'/eye2_face{}_frame{}.jpg'.format(i, frame_num), eye2)
                 cv2.imwrite(folder_to_write + r'/botheyes_face{}_frame{}.jpg'.format(i, frame_num), both_eyes)
