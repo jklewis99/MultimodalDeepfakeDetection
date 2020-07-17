@@ -2,7 +2,7 @@ import os
 import math
 import cv2
 import sys
-import np
+import numpy as np
 from BlazeFace.blazeface import init_model
 from Utils.video import *
 
