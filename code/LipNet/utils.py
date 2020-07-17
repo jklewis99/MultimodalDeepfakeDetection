@@ -103,19 +103,14 @@ def read_video(filename):
 
 
 def load_video(filename, device='cuda', div=1):
-
     array = read_video(filename)
-    print(f"Video is read. Number of frames: {len(array)}")
 
     fa = face_alignment.FaceAlignment(
         face_alignment.LandmarksType._2D, flip_input=False)
-    print(f"Face Aligment Network Loaded")
 
     points = []
     for I in array:
         points.append(fa.get_landmarks(I[::div, ::div]))
-
-    print("Landmarks Detected")
 
     front256 = get_position(256)
     video = []

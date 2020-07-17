@@ -11,7 +11,7 @@ class BlazeBlock(nn.Module):
         self.stride = stride
         self.channel_pad = out_channels - in_channels
 
-        # TFLite uses slightly different padding than PyTorch 
+        # TFLite uses slightly different padding than PyTorch
         # on the depthwise conv layer when the stride is 2.
         if stride == 2:
             self.max_pool = nn.MaxPool2d(kernel_size=stride, stride=stride)
@@ -20,10 +20,10 @@ class BlazeBlock(nn.Module):
             padding = (kernel_size - 1) // 2
 
         self.convs = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=in_channels, 
-                      kernel_size=kernel_size, stride=stride, padding=padding, 
+            nn.Conv2d(in_channels=in_channels, out_channels=in_channels,
+                      kernel_size=kernel_size, stride=stride, padding=padding,
                       groups=in_channels, bias=True),
-            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, 
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=True),
         )
 
@@ -44,7 +44,7 @@ class BlazeBlock(nn.Module):
 
 class BlazeFace(nn.Module):
     """The BlazeFace face detection model from MediaPipe.
-    
+
     The version from MediaPipe is simpler than the one in the paper; 
     it does not use the "double" BlazeBlocks.
 
@@ -62,6 +62,7 @@ class BlazeFace(nn.Module):
     Based on code from https://github.com/tkat0/PyTorch_BlazeFace/ and
     https://github.com/google/mediapipe/
     """
+
     def __init__(self):
         super(BlazeFace, self).__init__()
 
@@ -82,7 +83,8 @@ class BlazeFace(nn.Module):
 
     def _define_layers(self):
         self.backbone1 = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=24, kernel_size=5, stride=2, padding=0, bias=True),
+            nn.Conv2d(in_channels=3, out_channels=24, kernel_size=5,
+                      stride=2, padding=0, bias=True),
             nn.ReLU(inplace=True),
 
             BlazeBlock(24, 24),
@@ -97,7 +99,7 @@ class BlazeFace(nn.Module):
             BlazeBlock(72, 80),
             BlazeBlock(80, 88),
         )
-        
+
         self.backbone2 = nn.Sequential(
             BlazeBlock(88, 96, stride=2),
             BlazeBlock(96, 96),
@@ -111,20 +113,20 @@ class BlazeFace(nn.Module):
 
         self.regressor_8 = nn.Conv2d(88, 32, 1, bias=True)
         self.regressor_16 = nn.Conv2d(96, 96, 1, bias=True)
-        
+
     def forward(self, x):
         # TFLite uses slightly different padding on the first conv layer
         # than PyTorch, so do it manually.
         x = F.pad(x, (1, 2, 1, 2), "constant", 0)
-        
+
         b = x.shape[0]      # batch size, needed for reshaping later
 
         x = self.backbone1(x)           # (b, 88, 16, 16)
         h = self.backbone2(x)           # (b, 96, 8, 8)
-        
+
         # Note: Because PyTorch is NCHW but TFLite is NHWC, we need to
         # permute the output from the conv layers before reshaping it.
-        
+
         c1 = self.classifier_8(x)       # (b, 2, 16, 16)
         c1 = c1.permute(0, 2, 3, 1)     # (b, 16, 16, 2)
         c1 = c1.reshape(b, -1, 1)       # (b, 512, 1)
@@ -149,13 +151,14 @@ class BlazeFace(nn.Module):
     def _device(self):
         """Which device (CPU or GPU) is being used by this model?"""
         return self.classifier_8.weight.device
-    
+
     def load_weights(self, path):
         self.load_state_dict(torch.load(path))
-        self.eval()        
-    
+        self.eval()
+
     def load_anchors(self, path):
-        self.anchors = torch.tensor(np.load(path), dtype=torch.float32, device=self._device())
+        self.anchors = torch.tensor(
+            np.load(path), dtype=torch.float32, device=self._device())
         assert(self.anchors.ndimension() == 2)
         assert(self.anchors.shape[0] == self.num_anchors)
         assert(self.anchors.shape[1] == 4)
@@ -219,7 +222,8 @@ class BlazeFace(nn.Module):
         filtered_detections = []
         for i in range(len(detections)):
             faces = self._weighted_non_max_suppression(detections[i])
-            faces = torch.stack(faces) if len(faces) > 0 else torch.zeros((0, 17))
+            faces = torch.stack(faces) if len(
+                faces) > 0 else torch.zeros((0, 17))
             filtered_detections.append(faces)
 
         return filtered_detections
@@ -246,13 +250,13 @@ class BlazeFace(nn.Module):
         assert raw_score_tensor.shape[2] == self.num_classes
 
         assert raw_box_tensor.shape[0] == raw_score_tensor.shape[0]
-        
+
         detection_boxes = self._decode_boxes(raw_box_tensor, anchors)
-        
+
         thresh = self.score_clipping_thresh
         raw_score_tensor = raw_score_tensor.clamp(-thresh, thresh)
         detection_scores = raw_score_tensor.sigmoid().squeeze(dim=-1)
-        
+
         # Note: we stripped off the last dimension from the scores tensor
         # because there is only has one class. Now we can simply use a mask
         # to filter out the boxes with too low confidence.
@@ -274,8 +278,10 @@ class BlazeFace(nn.Module):
         """
         boxes = torch.zeros_like(raw_boxes)
 
-        x_center = raw_boxes[..., 0] / self.x_scale * anchors[:, 2] + anchors[:, 0]
-        y_center = raw_boxes[..., 1] / self.y_scale * anchors[:, 3] + anchors[:, 1]
+        x_center = raw_boxes[..., 0] / self.x_scale * \
+            anchors[:, 2] + anchors[:, 0]
+        y_center = raw_boxes[..., 1] / self.y_scale * \
+            anchors[:, 3] + anchors[:, 1]
 
         w = raw_boxes[..., 2] / self.w_scale * anchors[:, 2]
         h = raw_boxes[..., 3] / self.h_scale * anchors[:, 3]
@@ -287,9 +293,11 @@ class BlazeFace(nn.Module):
 
         for k in range(6):
             offset = 4 + k*2
-            keypoint_x = raw_boxes[..., offset    ] / self.x_scale * anchors[:, 2] + anchors[:, 0]
-            keypoint_y = raw_boxes[..., offset + 1] / self.y_scale * anchors[:, 3] + anchors[:, 1]
-            boxes[..., offset    ] = keypoint_x
+            keypoint_x = raw_boxes[..., offset] / \
+                self.x_scale * anchors[:, 2] + anchors[:, 0]
+            keypoint_y = raw_boxes[..., offset + 1] / \
+                self.y_scale * anchors[:, 3] + anchors[:, 1]
+            boxes[..., offset] = keypoint_x
             boxes[..., offset + 1] = keypoint_y
 
         return boxes
@@ -308,12 +316,13 @@ class BlazeFace(nn.Module):
         The input detections should be a Tensor of shape (count, 17).
 
         Returns a list of PyTorch tensors, one for each detected face.
-        
+
         This is based on the source code from:
         mediapipe/calculators/util/non_max_suppression_calculator.cc
         mediapipe/calculators/util/non_max_suppression_calculator.proto
         """
-        if len(detections) == 0: return []
+        if len(detections) == 0:
+            return []
 
         output_detections = []
 
@@ -323,7 +332,7 @@ class BlazeFace(nn.Module):
         while len(remaining) > 0:
             detection = detections[remaining[0]]
 
-            # Compute the overlap between the first box and the other 
+            # Compute the overlap between the first box and the other
             # remaining boxes. (Note that the other_boxes also include
             # the first_box.)
             first_box = detection[:4]
@@ -349,7 +358,7 @@ class BlazeFace(nn.Module):
 
             output_detections.append(weighted_detection)
 
-        return output_detections    
+        return output_detections
 
 
 # IOU code from https://github.com/amdegroot/ssd.pytorch/blob/master/layers/box_utils.py
@@ -399,3 +408,15 @@ def jaccard(box_a, box_b):
 def overlap_similarity(box, other_boxes):
     """Computes the IOU between a bounding box and set of other boxes."""
     return jaccard(box.unsqueeze(0), other_boxes).squeeze(0)
+
+
+def init_model():
+    net = BlazeFace()  # .to('cuda')
+    net.load_weights("BlazeFace/params/blazeface.pth")
+    net.load_anchors("BlazeFace/params/anchors.npy")
+
+    # Optionally change the thresholds:
+    net.min_score_thresh = 0.75
+    net.min_suppression_threshold = 0.3
+
+    return net
