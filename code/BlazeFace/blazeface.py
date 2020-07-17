@@ -411,7 +411,7 @@ def overlap_similarity(box, other_boxes):
 
 
 def init_model():
-    net = BlazeFace()  # .to('cuda')
+    net = BlazeFace().to('cuda')
     net.load_weights("BlazeFace/params/blazeface.pth")
     net.load_anchors("BlazeFace/params/anchors.npy")
 
