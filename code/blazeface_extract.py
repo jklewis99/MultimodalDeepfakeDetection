@@ -62,34 +62,39 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
         size = min(frame.shape[0], frame.shape[1])
         detection = detection.cpu().numpy()
 
-        ymin = math.floor(detection[0, 0] * size + yshift) - padding
-        ymin = max(0, ymin)
+        try:
 
-        xmin = math.floor(detection[0, 1] * size + xshift) - padding
-        xmin = max(0, xmin)
+            ymin = math.floor(detection[0, 0] * size + yshift) - padding
+            ymin = max(0, ymin)
 
-        ymax = math.floor(detection[0, 2] * size + yshift) + padding
-        ymax = min(frame.shape[0], ymax)
+            xmin = math.floor(detection[0, 1] * size + xshift) - padding
+            xmin = max(0, xmin)
 
-        xmax = math.floor(detection[0, 3] * size + xshift) + padding
-        xmax = min(frame.shape[1], xmax)
+            ymax = math.floor(detection[0, 2] * size + yshift) + padding
+            ymax = min(frame.shape[0], ymax)
 
-        # mark landmarks:
-        if mark_landmarks:
-            for k in range(6):
-                kp_x = math.floor(detection[0, 4 + k*2] * size + xshift)
-                kp_y = math.floor(detection[0, 4 + k*2 + 1] * size + yshift)
-                frame = cv2.circle(frame, (kp_x, kp_y), 2, (255, 0, 0), 2)
+            xmax = math.floor(detection[0, 3] * size + xshift) + padding
+            xmax = min(frame.shape[1], xmax)
 
-        face = frame[ymin:ymax, xmin:xmax]
-        face = cv2.resize(face, (128, 128))
+            # mark landmarks:
+            if mark_landmarks:
+                for k in range(6):
+                    kp_x = math.floor(detection[0, 4 + k*2] * size + xshift)
+                    kp_y = math.floor(
+                        detection[0, 4 + k*2 + 1] * size + yshift)
+                    frame = cv2.circle(frame, (kp_x, kp_y), 2, (255, 0, 0), 2)
 
-        if save_path is not None:
-            fileid = get_file_id(filepath)
-            cv2.imwrite(f'{save_path}/{fileid}-{i:04d}.png',
-                        cv2.cvtColor(face, cv2.COLOR_RGB2BGR))
+            face = frame[ymin:ymax, xmin:xmax]
+            face = cv2.resize(face, (128, 128))
 
-        output.append(face)
+            if save_path is not None:
+                fileid = get_file_id(filepath)
+                cv2.imwrite(f'{save_path}/{fileid}-{i:04d}.png',
+                            cv2.cvtColor(face, cv2.COLOR_RGB2BGR))
+
+            output.append(face)
+        except:
+            pass
 
     return output
 
