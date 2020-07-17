@@ -85,7 +85,7 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
                     frame = cv2.circle(frame, (kp_x, kp_y), 2, (255, 0, 0), 2)
 
             face = frame[ymin:ymax, xmin:xmax]
-            face = cv2.resize(face, (128, 128))
+            face = cv2.resize(face, (299, 299))
 
             if save_path is not None:
                 fileid = get_file_id(filepath)

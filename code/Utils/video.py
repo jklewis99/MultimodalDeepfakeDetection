@@ -62,7 +62,7 @@ def resize_and_crop_video(frames, dim):
         if frames[i].shape[0] > frames[i].shape[1]:
             img = image_resize(frames[i], width=dim)
             yshift, xshift = (frames[i].shape[0] - frames[i].shape[1]) // 2, 0
-            y_start = (img.shape[1] - img.shape[0]) // 2
+            y_start = (img.shape[0] - img.shape[1]) // 2
             y_end = y_start + dim
             smframes.append(img[y_start:y_end, :, :])
         else:
@@ -73,3 +73,9 @@ def resize_and_crop_video(frames, dim):
             smframes.append(img[:, x_start:x_end, :])
 
     return smframes, (xshift, yshift)
+
+
+# if __name__ == '__main__':
+#     a = [np.ones((1080, 1920, 3)) for i in range(100)]
+#     b = resize_and_crop_video(a, 128)
+#     print(b[0].shape)
