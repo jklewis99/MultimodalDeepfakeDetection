@@ -4,6 +4,7 @@ import os
 import cv2
 import numpy as np
 import sys
+from tqdm import tqdm
 
 
 def feats_from_dir(path, outpath, model):
@@ -50,12 +51,12 @@ def main():
 
     net = xception()
 
-    for path in reallist:
+    for path in tqdm(reallist, desc='Processing fake files'):
         fileid = get_file_id(path)
         outpath = os.path.join(output_dir, 'real', fileid)
         feats_from_dir(path, outpath, net)
 
-    for path in fakelist:
+    for path in tqdm(fakelist, desc='Processing fake files'):
         fileid = get_file_id(path)
         outpath = os.path.join(output_dir, 'fake', fileid)
         feats_from_dir(path, outpath, net)
@@ -63,7 +64,6 @@ def main():
 
 def get_file_id(path):
     return path.split('/')[-1]
-
 
     # print(files)
 if __name__ == '__main__':
