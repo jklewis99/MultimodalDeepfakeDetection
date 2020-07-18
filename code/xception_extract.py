@@ -49,7 +49,7 @@ def main():
     reallist = [os.path.join(input_dir, 'real', p)
                 for p in os.listdir(os.path.join(input_dir, 'real'))]
 
-    net = xception()
+    net = xception().to('cuda')
 
     for path in tqdm(reallist, desc='Processing fake files'):
         fileid = get_file_id(path)
