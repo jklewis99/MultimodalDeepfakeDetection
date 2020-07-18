@@ -17,7 +17,8 @@ def feats_from_dir(path, outpath, model):
     for i in range(max(frameidx) + 1):
         fname = f'{vname}-{i:04d}.png'
         fpath = os.path.join(path, fname)
-        im = cv2.imread(fpath)
+        # bnormalized image
+        im = (cv2.imread(fpath) / 255. - .5) / .5
         if im is None:
             currentseq = np.stack(currentseq)
             imgseqs.append(currentseq)
