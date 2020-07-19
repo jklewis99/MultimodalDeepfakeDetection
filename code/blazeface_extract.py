@@ -18,8 +18,6 @@ def main():
     realfilelist = [os.path.join(input_dir, 'real', p) for p in os.listdir(os.path.join(
         input_dir, 'real')) if p[-4:] == '.mp4']
 
-    # filelist = [*realfilelist, *fakefilelist]
-
     net = init_model()
 
     for p in realfilelist:
@@ -89,7 +87,7 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
 
             if save_path is not None:
                 fileid = get_file_id(filepath)
-                cv2.imwrite(f'{save_path}/{fileid}-{i:04d}.png',
+                cv2.imwrite(f'{save_path}/{fileid}-{i:04d}.jpg',
                             cv2.cvtColor(face, cv2.COLOR_RGB2BGR))
 
             output.append(face)
