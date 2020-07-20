@@ -50,7 +50,7 @@ def get_iou(last_face, current_face):
     current_face: the bounding box (x1, y1, x2, y2) of one of the faces found in the current frame 
     '''
     if last_face is None:
-        return 0
+        return 1
     # rectangle of intersection:
     x1 = max(last_face[0], current_face[0])
     x2 = min(last_face[2], current_face[2])
@@ -93,35 +93,38 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
 
         iou = -1
         face_of_interest = None
-        try:
-            for face_num in range(len(detection)):
-                ymin = math.floor(detection[face_num, 0] * size + yshift) - padding
-                ymin = max(0, ymin)
 
-                xmin = math.floor(detection[face_num, 1] * size + xshift) - padding
-                xmin = max(0, xmin)
+        for face_num in range(len(detection)):
+            ymin = math.floor(detection[face_num, 0] * size + yshift) - padding
+            ymin = max(0, ymin)
 
-                ymax = math.floor(detection[face_num, 2] * size + yshift) + padding
-                ymax = min(frame.shape[0], ymax)
+            xmin = math.floor(detection[face_num, 1] * size + xshift) - padding
+            xmin = max(0, xmin)
 
-                xmax = math.floor(detection[face_num, 3] * size + xshift) + padding
-                xmax = min(frame.shape[1], xmax)
+            ymax = math.floor(detection[face_num, 2] * size + yshift) + padding
+            ymax = min(frame.shape[0], ymax)
 
-                # check if this detected face was closest to the last face detected
-                temp_iou = get_iou(last_face, [xmin, ymin, xmax, ymax])
-                if temp_iou > iou:
-                    face_of_interest = [xmin, ymin, xmax, ymax]
-                    iou = temp_iou
+            xmax = math.floor(detection[face_num, 3] * size + xshift) + padding
+            xmax = min(frame.shape[1], xmax)
 
-                # mark landmarks:
-                if mark_landmarks:
-                    for k in range(6):
-                        kp_x = math.floor(detection[face_num, 4 + k*2] * size + xshift)
-                        kp_y = math.floor(
-                            detection[face_num, 4 + k*2 + 1] * size + yshift)
-                        frame = cv2.circle(frame, (kp_x, kp_y), 2, (255, 0, 0), 2)
-            
-            # update the last_face rectangle
+            # check if this detected face was closest to the last face detected
+            temp_iou = get_iou(last_face, [xmin, ymin, xmax, ymax])
+            if temp_iou > iou:
+                face_of_interest = [xmin, ymin, xmax, ymax]
+                iou = temp_iou
+
+            # mark landmarks:
+            if mark_landmarks:
+                for k in range(6):
+                    kp_x = math.floor(detection[face_num, 4 + k*2] * size + xshift)
+                    kp_y = math.floor(
+                        detection[face_num, 4 + k*2 + 1] * size + yshift)
+                    frame = cv2.circle(frame, (kp_x, kp_y), 2, (255, 0, 0), 2)
+        
+        # update the last_face rectangle
+        if iou > 0: # if the iou is zero, then we have found a different face
+            ### EDGE CASE: blazeface does not find the same face after enough frames 
+            ###            and the subject moves enough that no face will ever be saved
             last_face = face_of_interest
             face = frame[face_of_interest[1] : face_of_interest[3], face_of_interest[0] : face_of_interest[2]]
             face = cv2.resize(face, (299, 299))
@@ -130,10 +133,9 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
                 fileid = get_file_id(filepath)
                 cv2.imwrite(f'{save_path}/{fileid}-{i:04d}.jpg',
                             cv2.cvtColor(face, cv2.COLOR_RGB2BGR))
-
             output.append(face)
-        except:
-            pass
+        else:
+            print('Found a different or no faces. Skipping...')
 
     return output
 

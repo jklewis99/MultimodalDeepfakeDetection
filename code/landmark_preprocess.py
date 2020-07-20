@@ -1,25 +1,24 @@
 import face_alignment
 import cv2
 import os
-from matplotlib import pyplot as plt
 import time
-import random
-import math
+import numpy as np
+from dct_processing import dct_antidiagonal_on_sequence
+import torch
+import argparse
 
-DATA_FOLDER = 'train_sample_videos'
-
-time_to_detect_landmarks = 0
-time_to_detect_tracking = 0
-time_to_render_bounds = 0
-time_to_read = 0
-time_to_write = 0
-time_to_resize = 0
+parser = argparse.ArgumentParser(description='Landmark Processing Transcription')
+parser.add_argument('--folder-input', default=None, help="Folder containing all of the video id folders that contain face images")
+parser.add_argument('--save-output', default=None, 
+                    help="Saves 1D dct, LipNet tensor, and (optionally) landmark images to this file_path")
+parser.add_argument('--landmark-save', default=False, help="Boolean that determines if landmark images will be saved (default: False)")
 
 # create the directory for each video and set it as the current directory to save each frame inside
-def create_directory(video_file, file_type='.mp4'):
+def create_directory(save_path, video_file, file_type='.mp4'):
     name = video_file.split(file_type)[0]
-    os.mkdir('preprocessed_data/{}'.format(name))
-    return 'preprocessed_data/{}'.format(name)
+    if not os.path.isdir('{}/{}'.format(save_path, name)):
+        os.mkdir('{}/{}'.format(save_path, name))
+    return '{}/{}'.format(save_path, name)
 
 '''
 Landmarks from face_alignment are located as follows:
@@ -34,123 +33,8 @@ Landmarks from face_alignment are located as follows:
     lips:      48, 59
     teeth:     60, 67
 '''
-def landmark_bounding_box(landmarks, offset, resize_info, img_shape):
-    '''
-    a top-level method for getting a bounding box of the landmarks detected
-    by FaceAlign
 
-    landmarks: array of size 68 with tuples of the x, y coordinates of a landmark
-    offset: x, y tuple defining the shift in the x and y direction when using psuedo-facetracking
-    resize_info: x, y for rescaling the dimensions because of initial rescale
-    '''
-    # create list ranges for landmark bounding boxes
-    eye1_range = list(range(17, 22)) + list(range(36, 42))
-    eye2_range = list(range(22, 27)) + list(range(42, 48))
-    nose_range = list(range(27, 36))
-    mouth_range = list(range(48, 60))
-    
-    eye1_rectangle = get_bounding_box(eye1_range, landmarks, offset, resize_info)
-    eye1_rectangle = verify_bounds(eye1_rectangle, img_shape)
-    
-    eye2_rectangle = get_bounding_box(eye2_range, landmarks, offset, resize_info)
-    eye2_rectangle = verify_bounds(normalize(eye2_rectangle), img_shape)
-    
-    eyes_rectangle = [min(eye1_rectangle[0], eye2_rectangle[0]),
-                      min(eye1_rectangle[1], eye2_rectangle[1]), 
-                      max(eye1_rectangle[2], eye2_rectangle[2]), 
-                      max(eye1_rectangle[3], eye2_rectangle[3])]
-
-    nose_rectangle = get_bounding_box(nose_range, landmarks, offset, resize_info)
-    nose_rectangle = verify_bounds(normalize(nose_rectangle), img_shape)
-    
-    mouth_rectangle = get_bounding_box(mouth_range, landmarks, offset, resize_info)
-    mouth_rectangle = verify_bounds(normalize(mouth_rectangle, size=(64, 128)), img_shape)
-    
-    return eye1_rectangle, eye2_rectangle, eyes_rectangle, nose_rectangle, mouth_rectangle
-
-def get_bounding_box(index_range, landmarks, offset, resize_info):
-    '''
-    a sub-level helper method for getting a bounding box based on the index_range
-
-    index_range: the indices that need to be searched for a given facial feature (nose, eye, etc.)
-    landmarks: array of size 68 with tuples of the x, y coordinates of a landmark
-    offset: x, y tuple defining the shift in the x and y direction when using psuedo-facetracking
-    resize_info: x, y for rescaling the dimensions because of initial rescale
-    '''
-    x1 = y1 = math.inf
-    x2 = y2 = 0
-    
-    for i in index_range:
-        x1 = min(landmarks[i][0] + offset[0], x1)
-        y1 = min(landmarks[i][1] + offset[1], y1)
-        x2 = max(landmarks[i][0] + offset[0], x2)
-        y2 = max(landmarks[i][1] + offset[1], y2)
-    
-    # additional space provide space in case of error in detection
-    x_cushion = int(max((x2-x1)*resize_info[0]*0.08, 6))
-    y_cushion = int(max((y2-y1)*resize_info[0]*0.08, 6))
-    
-    return [int(x1*resize_info[0])-x_cushion, 
-            int(y1*resize_info[1])-y_cushion, 
-            int(x2*resize_info[0])+x_cushion, 
-            int(y2*resize_info[1])+y_cushion]
-
-def normalize(bounding_box, size=(28, 28)):
-    '''
-    a sub-level helper method to rescale each facial feature into the 
-    correct scale while maintaining aspect ration
-
-    bounding_box: the x1, y1, x2, y2 mutable array that has already given 
-                  the rectangle of a facial feature
-    size: y, x tuple defining the desired height and width, respectively
-    '''
-    w = bounding_box[2]-bounding_box[0]
-    h = bounding_box[3]-bounding_box[1]
-    
-    if w < size[1] and h < size[0]:
-        # if both of the current width and height are too small, increase
-        # as needed
-        bounding_box[0] -= int(math.floor((size[1] - w )/ 2))
-        bounding_box[2] += int(math.ceil((size[1] - w) / 2))
-        bounding_box[1] -= int(math.floor((size[0] - h) / 2))
-        bounding_box[3] += int(math.ceil((size[0] - h) / 2))
-    elif w < size[1]:
-        # only increase width
-        to_increase = ((size[1] / size[0]) * h) - w
-        bounding_box[0] -= int(math.floor(to_increase / 2))
-        bounding_box[2] += int(math.ceil(to_increase / 2))
-    elif h < size[0]:
-        # only increase height
-        to_increase = (w / (size[1] / size[0])) - h
-        bounding_box[1] -= int(math.floor(to_increase / 2))
-        bounding_box[3] += int(math.ceil(to_increase / 2))
-    else:
-        # both height and width are bigger than the desired size
-        wid_rat = size[1] / w
-        hei_rat = size[0] / h
-        if wid_rat > hei_rat:
-            # increase width
-            to_increase = ((size[1] / size[0]) * h) - w
-            bounding_box[0] -= int(math.floor(to_increase / 2))
-            bounding_box[2] += int(math.ceil(to_increase / 2))
-        else:
-            # increase height
-            to_increase = (w / (size[1] / size[0])) - h
-            bounding_box[1] -= int(math.floor(to_increase / 2))
-            bounding_box[3] += int(math.ceil(to_increase / 2))
-            
-    return bounding_box
-
-def verify_bounds(rectangle, img_dim):
-    # make sure we won't get any index out of bounds errors
-    rectangle[0] = int(max(0, rectangle[0]))
-    rectangle[1] = int(max(0, rectangle[1]))
-    rectangle[2] = int(min(img_dim[1]-1, rectangle[2]))
-    rectangle[3] = int(min(img_dim[0]-1, rectangle[3]))
-    
-    return rectangle
-    
-def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
+def image_resize(image, min_dim=128, inter = cv2.INTER_AREA):
     '''
     method to resize an image based on a given width or height
     '''
@@ -159,12 +43,14 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     global time_to_resize
     start = time.time()
     dim = None
-    (h, w) = image.shape[:2]
+    width = None
+    height = None
     
-    # if both the width and height are None, then return the
-    # original image
-    if width is None and height is None:
-        return image
+    if image.shape[0] < image.shape[1]:
+        height = min_dim
+    else: 
+        width = min_dim
+    (h, w) = image.shape[:2]
 
     # check to see if the width is None
     if width is None:
@@ -187,150 +73,166 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     time_to_resize += time.time() - start
     return resized, (w/dim[0], h/dim[1])
 
-def face_resize_square(boundaries, img, size=299, inter=cv2.INTER_AREA):
-    # method to resize each face to 299x299
-    w = boundaries[2]-boundaries[0]
-    h = boundaries[3]-boundaries[1]
-    if w > h:
-        to_increase = w - h
-        boundaries[1] -= math.floor(to_increase/2)
-        boundaries[3] += math.ceil(to_increase/2)
-    else:
-        to_increase = h - w
-        boundaries[0] -= math.floor(to_increase/2)
-        boundaries[2] += math.ceil(to_increase/2)
-        
-    boundaries = verify_bounds(boundaries, img.shape)
-    return image_resize(img[boundaries[1] : boundaries[3], boundaries[0] : boundaries[2], :], width=size)[0]
+def transformation_from_points(points1, points2):
+    points1 = points1.astype(np.float64)
+    points2 = points2.astype(np.float64)
+ 
+    c1 = np.mean(points1, axis=0)
+    c2 = np.mean(points2, axis=0)
+    points1 -= c1
+    points2 -= c2
+    s1 = np.std(points1)
+    s2 = np.std(points2)
+    points1 /= s1
+    points2 /= s2
+ 
+    U, S, Vt = np.linalg.svd(points1.T * points2)
+    R = (U * Vt).T
+    return np.vstack([np.hstack(((s2 / s1) * R,
+                                       c2.T - (s2 / s1) * R * c1.T)),
+                         np.matrix([0., 0., 1.])])
 
-def face_track(frame, fa, last_bounding_box=None):
+def get_position(size, padding=0.25):
+    
+    x = [0.000213256, 0.0752622, 0.18113, 0.29077, 0.393397, 0.586856, 0.689483, 0.799124,
+                    0.904991, 0.98004, 0.490127, 0.490127, 0.490127, 0.490127, 0.36688, 0.426036,
+                    0.490127, 0.554217, 0.613373, 0.121737, 0.187122, 0.265825, 0.334606, 0.260918,
+                    0.182743, 0.645647, 0.714428, 0.793132, 0.858516, 0.79751, 0.719335, 0.254149,
+                    0.340985, 0.428858, 0.490127, 0.551395, 0.639268, 0.726104, 0.642159, 0.556721,
+                    0.490127, 0.423532, 0.338094, 0.290379, 0.428096, 0.490127, 0.552157, 0.689874,
+                    0.553364, 0.490127, 0.42689]
+    
+    y = [0.106454, 0.038915, 0.0187482, 0.0344891, 0.0773906, 0.0773906, 0.0344891,
+                    0.0187482, 0.038915, 0.106454, 0.203352, 0.307009, 0.409805, 0.515625, 0.587326,
+                    0.609345, 0.628106, 0.609345, 0.587326, 0.216423, 0.178758, 0.179852, 0.231733,
+                    0.245099, 0.244077, 0.231733, 0.179852, 0.178758, 0.216423, 0.244077, 0.245099,
+                    0.780233, 0.745405, 0.727388, 0.742578, 0.727388, 0.745405, 0.780233, 0.864805,
+                    0.902192, 0.909281, 0.902192, 0.864805, 0.784792, 0.778746, 0.785343, 0.778746,
+                    0.784792, 0.824182, 0.831803, 0.824182]
+    
+    x, y = np.array(x), np.array(y)
+    
+    x = (x + padding) / (2 * padding + 1)
+    y = (y + padding) / (2 * padding + 1)
+    x = x * size
+    y = y * size
+    return np.array(list(zip(x, y)))
+
+def get_landmarks_from_directory(path, fa):
     '''
-    we want to limit our search space based on the last bounding box to speed up landmark detection
-    
-    frame: frame of video (already resized)
-    last_bounding_box: rectangluar endpoints of last detected face (x1, y1, x2, y2)
-    fa: pretrained detection model
+    process the faces in a directory and find their landmark points
     '''
-    global time_to_detect_landmarks
+    faces = os.listdir(path)
+    read_images = [cv2.imread(os.path.join(path, face)) for face in faces]
+    read_images = list(filter(lambda im: not im is None, read_images))
+    list_landmark_points = [fa.get_landmarks(img) for img in read_images]
     
-    if last_bounding_box is None:
-        start = time.time()
-        preds = fa.get_landmarks(frame)
-        time_to_detect_landmarks += time.time() - start
-        return preds, (0, 0)
+    return list_landmark_points, read_images
+
+def landmark_boundaries(front256, img):
+    '''
+    get the center of our landmarks and return the bounding box of the landmark
+    *** function assumes the img is affine transformed ***
+    '''
+    x, y = front256[31:].mean(0).astype(np.int32) # mouth
+    mouth = get_landmark_box(img, x, y, 80, square=False)
+    x, y = front256[10:19].mean(0).astype(np.int32) # nose?
+    nose = get_landmark_box(img, x, y, 40)
+    x, y =  np.concatenate([front256[0:5], front256[19: 25]]).mean(0).astype(np.int32) # eye1?
+    eye1 = get_landmark_box(img, x, y, 40)
+    x, y = np.concatenate([front256[5:10], front256[25: 31]]).mean(0).astype(np.int32) # eye2?
+    eye2 = get_landmark_box(img, x, y, 40)
     
-    # expand the last bounding box in all directions
-    offset_x = max(0, last_bounding_box[0]-20) # maintain offsets as floats
-    offset_y = max(0, last_bounding_box[1]-20)
-    x1 = int(offset_x)                                       # new x1
-    y1 = int(offset_y)                                       # new y1
-    x2 = int(min(frame.shape[1]-1, last_bounding_box[2]+20)) # new x2
-    y2 = int(min(frame.shape[0]-1, last_bounding_box[3]+20)) # new y2
+    return mouth, nose, eye1, eye2
+
+def get_landmark_box(img, x, y, w, square=True):
+    if square:
+        img = img[y - w : y + w, x - w : x + w, ...]
+    else:
+        img = img[y - w // 2: y + w // 2, x - w : x + w, ...]
+    return img
+
+def save_frame(folder_to_write, img, name):
+    cv2.imwrite('{}/{}.jpg'.format(folder_to_write, name), img)
+    dct_frame(folder_to_write, img, name)
+
+def save_mouth_sequence(video, video_id, save_path=None):
+    video = np.stack(video, axis=0).astype(np.float32)
+    video = torch.FloatTensor(video.transpose(3, 0, 1, 2)) / 255.0
+    if save_path:
+        torch.save(video, '{}/{}-lipnet-mouths.pt'.format(save_path, video_id))
+    return video
+
+def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False):
+    list_dir_landmarks, faces_array = get_landmarks_from_directory(os.path.join(input_path, video_id), fa)
+    front256 = get_position(256)
+    count = 0
+    mouth_video = []
+    nose_video = []
+    eye1_video =[]
+    eye2_video = []
+    LipNet_sequence = []
+    for i, data in enumerate(zip(list_dir_landmarks, faces_array)):
+        preds, face = data
+        if preds is not None:
+            shape = np.array(preds[0]) # get the list of landmarks
+            shape = shape[17:] # diregard the face endpoints
+            M = transformation_from_points(np.matrix(shape), np.matrix(front256)) # transform the face
+        
+            img = cv2.warpAffine(face, M[:2], (256, 256))
+            mouth, nose, eye1, eye2 = landmark_boundaries(front256, img)
+            
+            LipNet_sequence.append(cv2.resize(mouth, (128, 64)))
+            mouth = cv2.resize(mouth, (256, 128))
+            nose = cv2.resize(nose, (128, 128))
+            eye1 = cv2.resize(eye1, (128, 128))
+            eye2 = cv2.resize(eye2, (128, 128))
+            mouth_video.append(mouth)
+            nose_video.append(nose)
+            eye1_video.append(eye1)
+            eye2_video.append(eye2)
+
+            if save_landmarks and save_path:
+                cv2.imwrite(f'{save_path}/{video_id}-mouth-{i:04d}.jpg', mouth)
+                cv2.imwrite(f'{save_path}/{video_id}-nose-{i:04d}.jpg', nose)
+                cv2.imwrite(f'{save_path}/{video_id}-eye1-{i:04d}.jpg', eye1)
+                cv2.imwrite(f'{save_path}/{video_id}-eye2-{i:04d}.jpg', eye2)
+
+        else:
+            count+= 1
+            print('No Preds:', count)
+
+    save_mouth_sequence(LipNet_sequence, video_id, save_path)
+    dct_mouth_video = dct_antidiagonal_on_sequence(mouth_video)
+    dct_nose_video = dct_antidiagonal_on_sequence(nose_video)
+    dct_eye1_video = dct_antidiagonal_on_sequence(eye1_video)
+    dct_eye2_video = dct_antidiagonal_on_sequence(eye2_video)
+
+    if save_path is not None:
+        np.save('{}/{}-mouth_dct'.format(save_path, video_id), dct_mouth_video)
+        np.save('{}/{}-nose_dct'.format(save_path, video_id), dct_nose_video)
+        np.save('{}/{}-eye1_dct'.format(save_path, video_id), dct_eye1_video)
+        np.save('{}/{}-eye2_dct'.format(save_path, video_id), dct_eye2_video)
+
+def main():
+    args = parser.parse_args()
+
+    vids = os.listdir(args.folder_input)
+    save_landmarks = args.landmark_save.lower() == 'true'
+    
+    fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, device='cuda')
 
     start = time.time()
-    preds = fa.get_landmarks(frame[y1:y2, x1:x2, :])
-    time_to_detect_landmarks += time.time() - start
-    
-    return preds, (offset_x, offset_y)
+    count_processed = 0
 
-def detect_landmarks(path, file_name, fa, folder_to_write):
-    '''
-    primary method to take each frame of a video and save the face and landmarks from each frame
-    
-    path: directory of video
-    file_name: name of the video
-    fa: model for face and landmark detections
-    folder_to_write: local directory in top-level video folders and their landmarks and frames will be save
-    '''
-    capture = cv2.VideoCapture(os.path.join(path, file_name))
-    width  = int(capture.get(3))
-    height = int(capture.get(4))
-    
-    global time_to_detect_tracking, time_to_render_bounds, time_to_read, time_to_write, time_to_resize
-    
-    face_box = None
-    frame_num = 1
-    
-    while capture.isOpened():
-        start = time.time()
-        success, orig_frame = capture.read()
-        time_to_read += time.time() - start
-        if not success:
-            # we have reached the end of the video
-            break
-        start = time.time()
-        frame, resize_info = image_resize(orig_frame, width=400)
-        time_to_resize += time.time() - start
-        
-        start = time.time()        
-        preds, offset = face_track(frame, fa, face_box)
-        time_to_detect_tracking += time.time() - start
-        
-        if preds:
-            for i in range(len(preds[1])):
-                face_box = preds[1][i]
-                
-                face_box[0] += offset[0]
-                face_box[2] += offset[0]
-                face_box[1] += offset[1]
-                face_box[3] += offset[1]
-                start = time.time()
-                eye1, eye2, both_eyes, nose, mouth = landmark_bounding_box(preds[0][i], offset, resize_info, orig_frame.shape)
-                time_to_render_bounds += time.time()-start
-                
-                face = face_resize_square([int(face_box[0]*resize_info[0]), int(face_box[1]*resize_info[0]), 
-                                           int(face_box[2]*resize_info[1]), int(face_box[3]*resize_info[1])], 
-                                           orig_frame)
-                eye1, _ = image_resize(orig_frame[eye1[1]:eye1[3], eye1[0]:eye1[2], :], width=128)
-                eye2, _ = image_resize(orig_frame[eye2[1]:eye2[3], eye2[0]:eye2[2], :], width=128)
-                both_eyes, _ = image_resize(orig_frame[both_eyes[1]:both_eyes[3], both_eyes[0]:both_eyes[2], :], width=128)
-                nose, _ = image_resize(orig_frame[nose[1]:nose[3], nose[0]:nose[2], :], width=128)
-                mouth, _ = image_resize(orig_frame[mouth[1]:mouth[3], mouth[0]:mouth[2], :], width=128)
+    for vid in vids:
+        path = create_directory(args.save_output, vid, file_type=' ')
+        process_faces(fa, args.folder_input, vid, save_path=path, save_landmarks=save_landmarks)
+        print('Finished processing video {}'.format(vid))
+        count_processed += 1
 
-                # save each image in the correct folder
-                start = time.time()
-                cv2.imwrite(folder_to_write + r'/face_face{}_frame{}.jpg'.format(i, frame_num), face)                                                                                             int(face_box[0]*resize_info[0]):int(face_box[2]*resize_info[0]), :])
-                cv2.imwrite(folder_to_write + r'/eye1_face{}_frame{}.jpg'.format(i, frame_num), eye1)
-                cv2.imwrite(folder_to_write + r'/eye2_face{}_frame{}.jpg'.format(i, frame_num), eye2)
-                cv2.imwrite(folder_to_write + r'/botheyes_face{}_frame{}.jpg'.format(i, frame_num), both_eyes)
-                cv2.imwrite(folder_to_write + r'/nose_face{}_frame{}.jpg'.format(i, frame_num), nose)
-                cv2.imwrite(folder_to_write + r'/mouth_face{}_frame{}.jpg'.format(i, frame_num), mouth)
-                time_to_write += time.time() - start
-        else:
-            print('Video Error: No face landmarks detected so no face was saved')
-        frame_num += 1
-        
-    capture.release()
-
-fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D)
-
-vids = os.listdir(DATA_FOLDER)
-start = time.time()
-count_successful = 0
-videos_failed = []
-for vid in vids:
-    if os.path.isdir('preprocessed_data/{}'.format(vid.split('.mp4')[0])):
-        continue
-    folder2write = create_directory(vid)
-    try:
-        detect_landmarks(DATA_FOLDER, vid, fa, folder2write)
-        
-    except:
-        print('ERROR: Unsuccessful processing of {}'.format(vid))
-        videos_failed.append(vid)
-        continue
-    count_successful += 1 
-    print('Finished processing video {}'.format(vid))
-    print('Time: {} s'.format(time.time()-start))
+    process_time = time.time() - start
+    print('PROCESS TIME: {:.3f} s for {} videos (out of {})'.format(process_time, count_processed, len(vids)))
     
-    
-    
-process_time = time.time() - start
-print('PROCESS TIME: {:.3f} s for {} videos (out of {})'.format(process_time, count_successful, len(vids)))
-print('\tLandmark Detection: {:.3f} s'.format(time_to_detect_landmarks))
-print('\tTracking time: {:.3f} s'.format(time_to_detect_tracking))
-print('\tMake rectangles: {:.3f} s'.format(time_to_render_bounds))
-print('\tRead Time: {:.3f} s'.format(time_to_read))
-print('\tWrite Time: {:.3f} s'.format(time_to_write))
-print('\tResize: {:.3f} s'.format(time_to_resize))
-print('Videos that failed:\n', videos_failed)
+if __name__ == '__main__':
+    main()
