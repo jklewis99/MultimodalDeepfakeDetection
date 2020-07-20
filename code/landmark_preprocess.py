@@ -14,11 +14,11 @@ parser.add_argument('--save-output', default=None,
 parser.add_argument('--landmark-save', default=False, help="Boolean that determines if landmark images will be saved (default: False)")
 
 # create the directory for each video and set it as the current directory to save each frame inside
-def create_directory(save_path, video_file, file_type='.mp4'):
+def create_directory(save_path, label, video_file, file_type='.mp4'):
     name = video_file.split(file_type)[0]
-    if not os.path.isdir('{}/{}'.format(save_path, name)):
-        os.mkdir('{}/{}'.format(save_path, name))
-    return '{}/{}'.format(save_path, name)
+    if not os.path.isdir('{}/{}/{}'.format(save_path, label, name)):
+        os.mkdir('{}/{}/{}'.format(save_path, label, name))
+    return '{}/{}/{}'.format(save_path, label, name)
 
 '''
 Landmarks from face_alignment are located as follows:
@@ -142,8 +142,9 @@ def landmark_boundaries(front256, img):
     eye1 = get_landmark_box(img, x, y, 40)
     x, y = np.concatenate([front256[5:10], front256[25: 31]]).mean(0).astype(np.int32) # eye2?
     eye2 = get_landmark_box(img, x, y, 40)
-    
-    return mouth, nose, eye1, eye2
+    x, y = np.concatenate([front256[0:10], front256[19: 31]]).mean(0).astype(np.int32) # both eyes
+    eyes = get_landmark_box(img, x, y, 100, square=False)
+    return mouth, nose, eye1, eye2, eyes
 
 def get_landmark_box(img, x, y, w, square=True):
     if square:
@@ -171,6 +172,7 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
     nose_video = []
     eye1_video =[]
     eye2_video = []
+    eyes_video = []
     LipNet_sequence = []
     for i, data in enumerate(zip(list_dir_landmarks, faces_array)):
         preds, face = data
@@ -180,23 +182,25 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
             M = transformation_from_points(np.matrix(shape), np.matrix(front256)) # transform the face
         
             img = cv2.warpAffine(face, M[:2], (256, 256))
-            mouth, nose, eye1, eye2 = landmark_boundaries(front256, img)
+            mouth, nose, eye1, eye2, eyes = landmark_boundaries(front256, img)
             
             LipNet_sequence.append(cv2.resize(mouth, (128, 64)))
             mouth = cv2.resize(mouth, (256, 128))
             nose = cv2.resize(nose, (128, 128))
             eye1 = cv2.resize(eye1, (128, 128))
             eye2 = cv2.resize(eye2, (128, 128))
+            eyes = cv2.resize(eyes, (256, 128))
             mouth_video.append(mouth)
             nose_video.append(nose)
             eye1_video.append(eye1)
             eye2_video.append(eye2)
-
+            eyes_video.append(eyes)
             if save_landmarks and save_path:
                 cv2.imwrite(f'{save_path}/{video_id}-mouth-{i:04d}.jpg', mouth)
                 cv2.imwrite(f'{save_path}/{video_id}-nose-{i:04d}.jpg', nose)
                 cv2.imwrite(f'{save_path}/{video_id}-eye1-{i:04d}.jpg', eye1)
                 cv2.imwrite(f'{save_path}/{video_id}-eye2-{i:04d}.jpg', eye2)
+                cv2.imwrite(f'{save_path}/{video_id}-botheyes-{i:04d}.jpg', eyes)
 
         else:
             count+= 1
@@ -207,32 +211,49 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
     dct_nose_video = dct_antidiagonal_on_sequence(nose_video)
     dct_eye1_video = dct_antidiagonal_on_sequence(eye1_video)
     dct_eye2_video = dct_antidiagonal_on_sequence(eye2_video)
-
+    dct_botheyes_video = dct_antidiagonal_on_sequence(eyes_video)
     if save_path is not None:
-        np.save('{}/{}-mouth_dct'.format(save_path, video_id), dct_mouth_video)
-        np.save('{}/{}-nose_dct'.format(save_path, video_id), dct_nose_video)
-        np.save('{}/{}-eye1_dct'.format(save_path, video_id), dct_eye1_video)
-        np.save('{}/{}-eye2_dct'.format(save_path, video_id), dct_eye2_video)
+        np.save('{}/{}-mouth-dct'.format(save_path, video_id), dct_mouth_video)
+        np.save('{}/{}-nose-dct'.format(save_path, video_id), dct_nose_video)
+        np.save('{}/{}-eye1-dct'.format(save_path, video_id), dct_eye1_video)
+        np.save('{}/{}-eye2-dct'.format(save_path, video_id), dct_eye2_video)
+        np.save('{}/{}-botheyes-dct'.format(save_path, video_id), dct_botheyes_video)
 
 def main():
     args = parser.parse_args()
 
-    vids = os.listdir(args.folder_input)
+    # will fail if there is no folder labeled 'fake'
+    fakefilelist = [video_label for video_label in os.listdir(os.path.join(
+        args.folder_input, 'fake'))]
+
+    realfilelist = [video_label for video_label in os.listdir(os.path.join(
+        args.folder_input, 'real'))]
+
     save_landmarks = args.landmark_save.lower() == 'true'
     
     fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, device='cuda')
 
     start = time.time()
     count_processed = 0
+    
+    if not os.path.isdir('{}/{}'.format(args.save_output, 'fake')):
+        os.mkdir('{}/{}'.format(args.save_output, 'fake'))
+    for vid in fakefilelist:
+        path = create_directory(args.save_output, 'fake', vid, file_type=' ')
+        process_faces(fa, os.path.join(args.folder_input, 'fake'), vid, save_path=path, save_landmarks=save_landmarks)
+        print('Finished processing video {}'.format(vid))
+        count_processed += 1
 
-    for vid in vids:
-        path = create_directory(args.save_output, vid, file_type=' ')
-        process_faces(fa, args.folder_input, vid, save_path=path, save_landmarks=save_landmarks)
+    if not os.path.isdir('{}/{}'.format(args.save_output, 'real')):
+        os.mkdir('{}/{}'.format(args.save_output, 'real'))
+    for vid in realfilelist:
+        path = create_directory(args.save_output, 'real', vid, file_type=' ')
+        process_faces(fa, os.path.join(args.folder_input, 'real'), vid, save_path=path, save_landmarks=save_landmarks)
         print('Finished processing video {}'.format(vid))
         count_processed += 1
 
     process_time = time.time() - start
-    print('PROCESS TIME: {:.3f} s for {} videos (out of {})'.format(process_time, count_processed, len(vids)))
+    print('PROCESS TIME: {:.3f} s for {} videos (out of {})'.format(process_time, count_processed, len(fakefilelist)+len(realfilelist)))
     
 if __name__ == '__main__':
     main()

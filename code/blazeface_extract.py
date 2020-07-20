@@ -28,7 +28,7 @@ def main():
 
         faces = extract_faces(p, net, padding=30, save_path=out_dir)
 
-    for p in realfilelist:
+    for p in fakefilelist:
         fileid = get_file_id(p)
         out_dir = os.path.join(output_dir, 'fake', fileid)
         if not os.path.exists(out_dir):
