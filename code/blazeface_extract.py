@@ -41,6 +41,35 @@ def get_file_id(path):
     fileid = '.'.join(filename.split('.')[:-1])
     return fileid
 
+def get_iou(last_face, current_face):
+    '''
+    a method to calculate the intersection over union of the current face of interest and the
+    face of interest from the previous frame
+
+    last_face: the bounding box (x1, y1, x2, y2) of the face found in the previous frame 
+    current_face: the bounding box (x1, y1, x2, y2) of one of the faces found in the current frame 
+    '''
+    if last_face is None:
+        return 0
+    # rectangle of intersection:
+    x1 = max(last_face[0], current_face[0])
+    x2 = min(last_face[2], current_face[2])
+    y1 = max(last_face[1], current_face[1])
+    y2 = min(last_face[3], current_face[3])
+
+    # intersection area
+    inter_area = max(0, x2 - x1) * max(0, y2 - y1)
+
+    # area of the last face
+    last_face_area = max(0, last_face[2] - last_face[0]) * max(0, last_face[3] - last_face[1])
+
+    # area of the current face
+    current_face_area = max(0, current_face[2] - current_face[0]) * max(0, current_face[3] - current_face[1])
+
+    # intersection over union
+    iou = inter_area / (last_face_area + current_face_area - inter_area)
+
+    return iou
 
 def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=False):
     """
@@ -54,35 +83,47 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
     detections = net.predict_on_batch(smframesnp)
 
     output = []
+    last_face = None
+
     for i, detection in enumerate(detections):
         frame = frames[i]
 
         size = min(frame.shape[0], frame.shape[1])
         detection = detection.cpu().numpy()
 
+        iou = -1
+        face_of_interest = None
         try:
+            for face_num in range(len(detection)):
+                ymin = math.floor(detection[face_num, 0] * size + yshift) - padding
+                ymin = max(0, ymin)
 
-            ymin = math.floor(detection[0, 0] * size + yshift) - padding
-            ymin = max(0, ymin)
+                xmin = math.floor(detection[face_num, 1] * size + xshift) - padding
+                xmin = max(0, xmin)
 
-            xmin = math.floor(detection[0, 1] * size + xshift) - padding
-            xmin = max(0, xmin)
+                ymax = math.floor(detection[face_num, 2] * size + yshift) + padding
+                ymax = min(frame.shape[0], ymax)
 
-            ymax = math.floor(detection[0, 2] * size + yshift) + padding
-            ymax = min(frame.shape[0], ymax)
+                xmax = math.floor(detection[face_num, 3] * size + xshift) + padding
+                xmax = min(frame.shape[1], xmax)
 
-            xmax = math.floor(detection[0, 3] * size + xshift) + padding
-            xmax = min(frame.shape[1], xmax)
+                # check if this detected face was closest to the last face detected
+                temp_iou = get_iou(last_face, [xmin, ymin, xmax, ymax])
+                if temp_iou > iou:
+                    face_of_interest = [xmin, ymin, xmax, ymax]
+                    iou = temp_iou
 
-            # mark landmarks:
-            if mark_landmarks:
-                for k in range(6):
-                    kp_x = math.floor(detection[0, 4 + k*2] * size + xshift)
-                    kp_y = math.floor(
-                        detection[0, 4 + k*2 + 1] * size + yshift)
-                    frame = cv2.circle(frame, (kp_x, kp_y), 2, (255, 0, 0), 2)
-
-            face = frame[ymin:ymax, xmin:xmax]
+                # mark landmarks:
+                if mark_landmarks:
+                    for k in range(6):
+                        kp_x = math.floor(detection[face_num, 4 + k*2] * size + xshift)
+                        kp_y = math.floor(
+                            detection[face_num, 4 + k*2 + 1] * size + yshift)
+                        frame = cv2.circle(frame, (kp_x, kp_y), 2, (255, 0, 0), 2)
+            
+            # update the last_face rectangle
+            last_face = face_of_interest
+            face = frame[face_of_interest[1] : face_of_interest[3], face_of_interest[0] : face_of_interest[2]]
             face = cv2.resize(face, (299, 299))
 
             if save_path is not None:
@@ -95,7 +136,6 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
             pass
 
     return output
-
 
 if __name__ == '__main__':
     main()
