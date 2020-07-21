@@ -33,8 +33,9 @@ def feats_from_dir(path, outpath, model):
             currentseq.append(im)
             counter += 1
 
-    currentseq = np.stack(currentseq)
-    imgseqs.append(currentseq)
+    if len(currentseq) != 0:
+        currentseq = np.stack(currentseq)
+        imgseqs.append(currentseq)
 
     for i, seq in enumerate(imgseqs):
         if not os.path.exists(outpath):
