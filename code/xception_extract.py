@@ -14,6 +14,8 @@ def feats_from_dir(path, outpath, model):
     vname = path.split('/')[-1]
 
     frameidx = [int(p[-8:-4]) for p in os.listdir(path)]
+    if len(frameidx) == 0:
+        return
     imgseqs = []
     currentseq = []
     counter = 0
