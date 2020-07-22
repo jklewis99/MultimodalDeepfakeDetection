@@ -174,31 +174,31 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
     create_landmark_dir(save_path, 'right-eye')
 
     for frame, preds, face in zip(labels, list_dir_landmarks, faces_array):
-
-        if preds is not None:
-            shape = np.array(preds[0]) # get the list of landmarks
-            shape = shape[17:] # diregard the face endpoints
-            M = transformation_from_points(np.matrix(shape), np.matrix(front256)) # transform the face
-        
-            img = cv2.warpAffine(face, M[:2], (256, 256))
-            mouth, nose, eye1, eye2, eyes = landmark_boundaries(front256, img)
+        for face_preds in preds: # this will likely be of length one
+            if face_preds is not None:
+                shape = np.array(face_preds[0]) # get the list of landmarks
+                shape = shape[17:] # diregard the face endpoints
+                M = transformation_from_points(np.matrix(shape), np.matrix(front256)) # transform the face
             
-            mouth = cv2.resize(mouth, (256, 128))
-            nose = cv2.resize(nose, (128, 128))
-            eye1 = cv2.resize(eye1, (128, 128))
-            eye2 = cv2.resize(eye2, (128, 128))
-            eyes = cv2.resize(eyes, (256, 128))
-            
-            if save_landmarks and save_path:
-                cv2.imwrite(f'{save_path}/mouth/{frame}.jpg', mouth)
-                cv2.imwrite(f'{save_path}/nose/{frame}.jpg', nose)
-                cv2.imwrite(f'{save_path}/left-eye/{frame}.jpg', eye1)
-                cv2.imwrite(f'{save_path}/right-eye/{frame}.jpg', eye2)
-                cv2.imwrite(f'{save_path}/both-eyes/{frame}.jpg', eyes)
+                img = cv2.warpAffine(face, M[:2], (256, 256))
+                mouth, nose, eye1, eye2, eyes = landmark_boundaries(front256, img)
+                
+                mouth = cv2.resize(mouth, (256, 128))
+                nose = cv2.resize(nose, (128, 128))
+                eye1 = cv2.resize(eye1, (128, 128))
+                eye2 = cv2.resize(eye2, (128, 128))
+                eyes = cv2.resize(eyes, (256, 128))
+                
+                if save_landmarks and save_path:
+                    cv2.imwrite(f'{save_path}/mouth/{frame}.jpg', mouth)
+                    cv2.imwrite(f'{save_path}/nose/{frame}.jpg', nose)
+                    cv2.imwrite(f'{save_path}/left-eye/{frame}.jpg', eye1)
+                    cv2.imwrite(f'{save_path}/right-eye/{frame}.jpg', eye2)
+                    cv2.imwrite(f'{save_path}/both-eyes/{frame}.jpg', eyes)
 
-        else:
-            count+= 1
-            print('No Preds:', count)
+            else:
+                count+= 1
+                print('No Preds:', count)
 
 def main():
     args = parser.parse_args()
