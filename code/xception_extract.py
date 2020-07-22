@@ -18,22 +18,27 @@ def feats_from_dir(path, outpath, model):
         return
     imgseqs = []
     currentseq = []
-    counter = 0
+
     for i in range(max(frameidx) + 1):
         fname = f'{vname}-{i:04d}.jpg'
         fpath = os.path.join(path, fname)
-        # bnormalized image
+
         im = cv2.imread(fpath)
-        if im is None or counter == 24:
+
+        if im is None:
             if len(currentseq) != 0:
                 currentseq = np.stack(currentseq)
                 imgseqs.append(currentseq)
             currentseq = []
-            counter = 0
-        else:
-            im = (im / 255. - .5) / .5
-            currentseq.append(im)
-            counter += 1
+            continue
+
+        if len(currentseq) == 24:
+            currentseq = np.stack(currentseq)
+            imgseqs.append(currentseq)
+            currentseq = []
+
+        im = (im / 255. - .5) / .5
+        currentseq.append(im)
 
     if len(currentseq) != 0:
         currentseq = np.stack(currentseq)
@@ -44,7 +49,7 @@ def feats_from_dir(path, outpath, model):
             os.makedirs(outpath)
 
         seq = torch.Tensor(seq.transpose(0, 3, 1, 2))
-        seq = seq.cuda()
+        # seq = seq.cuda()
         feats = model.last_feature_layer(seq)
         outfile = os.path.join(outpath, vname)
         torch.save(feats, f'{outfile}-{i:03d}-{feats.shape[0]}.pt')
@@ -71,6 +76,7 @@ def main():
 
 def get_file_id(path):
     return path.split('/')[-1]
+
 
     # print(files)
 if __name__ == '__main__':
