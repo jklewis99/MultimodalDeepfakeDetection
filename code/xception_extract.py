@@ -6,28 +6,38 @@ import numpy as np
 import sys
 from tqdm import tqdm
 
+BATCH_SIZE = 24
+
 
 def feats_from_dir(path, outpath, model):
 
     vname = path.split('/')[-1]
 
     frameidx = [int(p[-8:-4]) for p in os.listdir(path)]
+    if len(frameidx) == 0:
+        return
     imgseqs = []
     currentseq = []
+    counter = 0
     for i in range(max(frameidx) + 1):
-        fname = f'{vname}-{i:04d}.png'
+        fname = f'{vname}-{i:04d}.jpg'
         fpath = os.path.join(path, fname)
         # bnormalized image
-        im = (cv2.imread(fpath) / 255. - .5) / .5
-        if im is None:
-            currentseq = np.stack(currentseq)
-            imgseqs.append(currentseq)
+        im = cv2.imread(fpath)
+        if im is None or counter == 24:
+            if len(currentseq) != 0:
+                currentseq = np.stack(currentseq)
+                imgseqs.append(currentseq)
             currentseq = []
+            counter = 0
         else:
+            im = (im / 255. - .5) / .5
             currentseq.append(im)
+            counter += 1
 
-    currentseq = np.stack(currentseq)
-    imgseqs.append(currentseq)
+    if len(currentseq) != 0:
+        currentseq = np.stack(currentseq)
+        imgseqs.append(currentseq)
 
     for i, seq in enumerate(imgseqs):
         if not os.path.exists(outpath):
@@ -36,7 +46,6 @@ def feats_from_dir(path, outpath, model):
         seq = torch.Tensor(seq.transpose(0, 3, 1, 2))
         seq = seq.cuda()
         feats = model.last_feature_layer(seq)
-
         outfile = os.path.join(outpath, vname)
         torch.save(feats, f'{outfile}-{i:03d}-{feats.shape[0]}.pt')
 
@@ -53,15 +62,11 @@ def main():
 
     net = xception().to('cuda')
 
-    for path in tqdm(reallist, desc='Processing fake files'):
-        fileid = get_file_id(path)
-        outpath = os.path.join(output_dir, 'real', fileid)
-        feats_from_dir(path, outpath, net)
-
-    for path in tqdm(fakelist, desc='Processing fake files'):
-        fileid = get_file_id(path)
-        outpath = os.path.join(output_dir, 'fake', fileid)
-        feats_from_dir(path, outpath, net)
+    for split in ('fake', 'real'):
+        for path in tqdm(fakelist, desc=f'Processing {split} files'):
+            fileid = get_file_id(path)
+            outpath = os.path.join(output_dir, split, fileid)
+            feats_from_dir(path, outpath, net)
 
 
 def get_file_id(path):

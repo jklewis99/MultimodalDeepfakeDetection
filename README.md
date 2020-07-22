@@ -11,4 +11,4 @@ python landmark_preprocess.py --folder-input path\to\processed\videos --save-out
 ```
 
 
-* = requires that the folder contains folders labeled 'real' and 'fake'
+\* = requires that the folder contains folders labeled 'real' and 'fake'
