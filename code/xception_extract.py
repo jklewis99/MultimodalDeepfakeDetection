@@ -49,7 +49,7 @@ def feats_from_dir(path, outpath, model):
             os.makedirs(outpath)
 
         seq = torch.Tensor(seq.transpose(0, 3, 1, 2))
-        # seq = seq.cuda()
+        seq = seq.cuda()
         feats = model.last_feature_layer(seq)
         outfile = os.path.join(outpath, vname)
         torch.save(feats, f'{outfile}-{i:03d}-{feats.shape[0]}.pt')
