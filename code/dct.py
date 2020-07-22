@@ -1,6 +1,6 @@
 import cv2
 from Utils.dct_processing import dct_antidiagonal_on_image
-from Utils.misc import create_directory
+from Utils.misc import create_directory, get_frame_ids
 import numpy as np
 import argparse
 import os
@@ -25,10 +25,7 @@ def landmark_dct_batch(input_path, landmark, save_path, batch_size):
     if not os.path.exists(path_to_landmark):
         print(f'Error: No folder named "{landmark}" in {input_path}')
         return
-    landmarks = os.listdir(path_to_landmark)
-    for frame_id in landmarks:
-        if frame_id.endswith('.jpg'):
-            frame_ids.append(int(frame_id[:-4]))
+    frame_ids = get_frame_ids(path_to_landmark)
 
     dct_batch = []
     batch_sequences = []
@@ -54,22 +51,19 @@ def landmark_dct_batch(input_path, landmark, save_path, batch_size):
         batch_sequences.append(np.stack(dct_batch))
 
     for i, seq in enumerate(batch_sequences):
-        np.save(f'{save_path}/dct-{i:03d}-{seq.shape[0]}', seq)
+        np.save(f'{save_path}/dct-{landmark}-{i:03d}-{seq.shape[0]}', seq)
 
 def main():
     args = parser.parse_args()
     landmarks = ['mouth', 'nose', 'left-eye', 'right-eye', 'both-eyes']
     subfolders = ['real', 'fake']
-    
     for subfolder in subfolders:
         file_list = [video_label for video_label in os.listdir(os.path.join(args.folder_input, subfolder))]
-        output_path = create_directory(os.path.join(args.save_output, subfolder))
         for video_id in file_list:
             input_path = os.path.join(args.folder_input, subfolder, video_id)
-            output_path = create_directory(os.path.join(output_path, video_id))
             # the assumption is that this input path contains 5 folders: mouth, nose, left-eye, right-eye, and both-eyes
             for landmark in landmarks:
-                landmark_output_path = create_directory(os.path.join(output_path, landmark))
+                landmark_output_path = create_directory(os.path.join(args.save_output, subfolder, video_id, landmark))
                 landmark_dct_batch(input_path, landmark, landmark_output_path, args.batch_size)
 
 if __name__ =='__main__':

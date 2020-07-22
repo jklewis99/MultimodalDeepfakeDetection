@@ -5,23 +5,14 @@ import time
 import numpy as np
 import torch
 import argparse
+from Utils.misc import create_directory
 
 parser = argparse.ArgumentParser(description='Landmark Processing Transcription')
 parser.add_argument('--folder-input', default=None, help="Folder containing all of the video id folders that contain face images")
 parser.add_argument('--save-output', default=None, 
                     help="Saves 1D dct, LipNet tensor, and (optionally) landmark images to this file_path")
-parser.add_argument('--landmark-save', default=False, help="Boolean that determines if landmark images will be saved (default: False)")
+parser.add_argument('--landmark-save', default=True, help="Boolean that determines if landmark images will be saved (default: True)")
 
-# create the directory for each video and set it as the current directory to save each frame inside
-def create_directory(save_path, label, video_file, file_type='.mp4'):
-    name = video_file.split(file_type)[0]
-    if not os.path.isdir('{}/{}/{}'.format(save_path, label, name)):
-        os.mkdir('{}/{}/{}'.format(save_path, label, name))
-    return '{}/{}/{}'.format(save_path, label, name)
-
-def create_landmark_dir(save_path, landmark):
-    if not os.path.isdir(f'{save_path}/{landmark}'):
-        os.mkdir(f'{save_path}/{landmark}')
 '''
 Landmarks from face_alignment are located as follows:
     Landmark | indices
@@ -35,46 +26,6 @@ Landmarks from face_alignment are located as follows:
     lips:      48, 59
     teeth:     60, 67
 '''
-
-def image_resize(image, min_dim=128, inter = cv2.INTER_AREA):
-    '''
-    method to resize an image based on a given width or height
-    '''
-    # initialize the dimensions of the image to be resized and
-    # grab the image size
-    global time_to_resize
-    start = time.time()
-    dim = None
-    width = None
-    height = None
-    
-    if image.shape[0] < image.shape[1]:
-        height = min_dim
-    else: 
-        width = min_dim
-    (h, w) = image.shape[:2]
-
-    # check to see if the width is None
-    if width is None:
-        # calculate the ratio of the height and construct the
-        # dimensions
-        r = height / float(h)
-        dim = (int(w * r), height)
-
-    # otherwise, the height is None
-    else:
-        # calculate the ratio of the width and construct the
-        # dimensions
-        r = width / float(w)
-        dim = (width, int(h * r))
-    
-    # resize the image
-    resized = cv2.resize(image, dim, interpolation = inter)
-
-    # return the resized image
-    time_to_resize += time.time() - start
-    return resized, (w/dim[0], h/dim[1])
-
 def transformation_from_points(points1, points2):
     points1 = points1.astype(np.float64)
     points2 = points2.astype(np.float64)
@@ -167,11 +118,11 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
     front256 = get_position(256)
     count = 0
 
-    create_landmark_dir(save_path, 'mouth')
-    create_landmark_dir(save_path, 'both-eyes')
-    create_landmark_dir(save_path, 'nose')
-    create_landmark_dir(save_path, 'left-eye')
-    create_landmark_dir(save_path, 'right-eye')
+    create_directory(os.path.join(save_path, 'mouth'))
+    create_directory(os.path.join(save_path, 'both-eyes'))
+    create_directory(os.path.join(save_path, 'nose'))
+    create_directory(os.path.join(save_path, 'left-eye'))
+    create_directory(os.path.join(save_path, 'right-eye'))
 
     for frame, preds, face in zip(labels, list_dir_landmarks, faces_array):
         if preds is not None:
@@ -203,13 +154,8 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
 
 def main():
     args = parser.parse_args()
-
-    # will fail if there is no folder labeled 'fake'
-    fakefilelist = [video_label for video_label in os.listdir(os.path.join(
-        args.folder_input, 'fake'))]
-
-    realfilelist = [video_label for video_label in os.listdir(os.path.join(
-        args.folder_input, 'real'))]
+    file_type = '.mp4'
+    # will fail if there is no folder labeled 'fake' and 'real'
 
     save_landmarks = args.landmark_save.lower() == 'true'
     
@@ -217,25 +163,20 @@ def main():
 
     start = time.time()
     count_processed = 0
-    
-    if not os.path.isdir('{}/{}'.format(args.save_output, 'fake')):
-        os.mkdir('{}/{}'.format(args.save_output, 'fake'))
-    for vid in fakefilelist:
-        path = create_directory(args.save_output, 'fake', vid, file_type=' ')
-        process_faces(fa, os.path.join(args.folder_input, 'fake'), vid, save_path=path, save_landmarks=save_landmarks)
-        print('Finished processing video {}'.format(vid))
-        count_processed += 1
-
-    if not os.path.isdir('{}/{}'.format(args.save_output, 'real')):
-        os.mkdir('{}/{}'.format(args.save_output, 'real'))
-    for vid in realfilelist:
-        path = create_directory(args.save_output, 'real', vid, file_type=' ')
-        process_faces(fa, os.path.join(args.folder_input, 'real'), vid, save_path=path, save_landmarks=save_landmarks)
-        print('Finished processing video {}'.format(vid))
-        count_processed += 1
+    subfolders = ['real', 'fake']
+    total_videos = 0
+    for subfolder in subfolders:
+        file_list = [video_label for video_label in os.listdir(os.path.join(args.folder_input, subfolder))]
+        for vid in file_list:
+            path = create_directory(os.path.join(args.save_output, subfolder, vid))
+            process_faces(fa, os.path.join(args.folder_input, subfolder), vid, save_path=path, save_landmarks=save_landmarks)
+            print(f'Finished processing video {vid}')
+            count_processed += 1
+        print(f'Finished processing {subfolder} videos')
+        total_videos += len(file_list)
 
     process_time = time.time() - start
-    print('PROCESS TIME: {:.3f} s for {} videos (out of {})'.format(process_time, count_processed, len(fakefilelist)+len(realfilelist)))
+    print('PROCESS TIME: {:.3f} s for {} videos (out of {})'.format(process_time, count_processed, total_videos))
     
 if __name__ == '__main__':
     main()
