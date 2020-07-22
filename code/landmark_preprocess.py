@@ -175,7 +175,9 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
 
     for frame, preds, face in zip(labels, list_dir_landmarks, faces_array):
         if preds is not None:
-            shape = np.array(preds[0]) # get the list of landmarks
+            # get the list of landmarks
+            # shape = preds[0] # this command works on my computer, but not lewis
+            shape = preds[0][0] # this command works on Lewis, but not my computer
             shape = shape[17:] # diregard the face endpoints
             M = transformation_from_points(np.matrix(shape), np.matrix(front256)) # transform the face
         
@@ -196,7 +198,7 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
                 cv2.imwrite(f'{save_path}/both-eyes/{frame}.jpg', eyes)
 
         else:
-            count+= 1
+            count += 1
             print('No Preds:', count)
 
 def main():
