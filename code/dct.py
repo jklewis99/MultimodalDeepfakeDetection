@@ -10,10 +10,10 @@ parser.add_argument('--folder-input', default=None, help=r"Folder containing all
 parser.add_argument('--save-output', default=None, help="Location to save 1D dct landmark batches")
 parser.add_argument('--batch_size', default=24, help="Maximum size of batch")
 
-def dct_batch(input_path, landmark, save_path, batch_size):
+def landmark_dct_batch(input_path, landmark, save_path, batch_size):
     '''
-    method to create a antidiagonal average of DCT for each frame in an image and\
-        save a numpy array of batch size number of antidiagonal averages
+    method to create an antidiagonal average of DCT for each frame in an image and\
+        save numpy arrays of batch size number of antidiagonal averages
     
     input_path: path where the jpg images of the landmarks are stored (must be labled as the frame number)
     landmark: string of the landmark that will be processed
@@ -70,7 +70,7 @@ def main():
             # the assumption is that this input path contains 5 folders: mouth, nose, left-eye, right-eye, and both-eyes
             for landmark in landmarks:
                 landmark_output_path = create_directory(os.path.join(output_path, landmark))
-                dct_batch(input_path, landmark, landmark_output_path, args.batch_size)
+                landmark_dct_batch(input_path, landmark, landmark_output_path, args.batch_size)
 
 if __name__ =='__main__':
     main()
