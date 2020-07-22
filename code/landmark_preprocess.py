@@ -3,15 +3,15 @@ import cv2
 import os
 import time
 import numpy as np
-import torch
 import argparse
 from Utils.misc import create_directory
 
 parser = argparse.ArgumentParser(description='Landmark Processing Transcription')
 parser.add_argument('--folder-input', default=None, help="Folder containing all of the video id folders that contain face images")
 parser.add_argument('--save-output', default=None, 
-                    help="Saves 1D dct, LipNet tensor, and (optionally) landmark images to this file_path")
-parser.add_argument('--landmark-save', default=True, help="Boolean that determines if landmark images will be saved (default: True)")
+                    help="Saves landmark images to this file path, in which folders 'real' and 'fake'\
+                        will be created. Inside of the real and fake folders, the labels for the video will be\
+                        created, in which folders for landmarks will be saved.")
 
 '''
 Landmarks from face_alignment are located as follows:
@@ -98,13 +98,13 @@ def landmark_boundaries(front256, img):
     mouth = get_landmark_box(img, x, y, 80, square=False)
     x, y = front256[10:19].mean(0).astype(np.int32) # nose?
     nose = get_landmark_box(img, x, y, 40)
-    x, y =  np.concatenate([front256[0:5], front256[19: 25]]).mean(0).astype(np.int32) # eye1?
-    eye1 = get_landmark_box(img, x, y, 40)
-    x, y = np.concatenate([front256[5:10], front256[25: 31]]).mean(0).astype(np.int32) # eye2?
-    eye2 = get_landmark_box(img, x, y, 40)
+    # x, y =  np.concatenate([front256[0:5], front256[19: 25]]).mean(0).astype(np.int32) # eye1?
+    # eye1 = get_landmark_box(img, x, y, 40)
+    # x, y = np.concatenate([front256[5:10], front256[25: 31]]).mean(0).astype(np.int32) # eye2?
+    # eye2 = get_landmark_box(img, x, y, 40)
     x, y = np.concatenate([front256[0:10], front256[19: 31]]).mean(0).astype(np.int32) # both eyes
     eyes = get_landmark_box(img, x, y, 100, square=False)
-    return mouth, nose, eye1, eye2, eyes
+    return mouth, nose, eyes
 
 def get_landmark_box(img, x, y, w, square=True):
     if square:
@@ -113,7 +113,11 @@ def get_landmark_box(img, x, y, w, square=True):
         img = img[y - w // 2: y + w // 2, x - w : x + w, ...]
     return img
 
-def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False):
+def process_faces(fa, input_path, video_id, save_path):
+    '''
+    top level method that takes all of the faces in a directory, performs an affine\
+        transformation, and extracts the mouth, nose, and eyes
+    '''
     list_dir_landmarks, faces_array, labels = get_landmarks_from_directory(os.path.join(input_path, video_id), fa)
     front256 = get_position(256)
     count = 0
@@ -121,8 +125,8 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
     create_directory(os.path.join(save_path, 'mouth'))
     create_directory(os.path.join(save_path, 'both-eyes'))
     create_directory(os.path.join(save_path, 'nose'))
-    create_directory(os.path.join(save_path, 'left-eye'))
-    create_directory(os.path.join(save_path, 'right-eye'))
+    # create_directory(os.path.join(save_path, 'left-eye'))
+    # create_directory(os.path.join(save_path, 'right-eye'))
 
     for frame, preds, face in zip(labels, list_dir_landmarks, faces_array):
         if preds is not None:
@@ -133,20 +137,20 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
             M = transformation_from_points(np.matrix(shape), np.matrix(front256)) # transform the face
         
             img = cv2.warpAffine(face, M[:2], (256, 256))
-            mouth, nose, eye1, eye2, eyes = landmark_boundaries(front256, img)
+            mouth, nose, eyes = landmark_boundaries(front256, img)
             
             mouth = cv2.resize(mouth, (256, 128))
             nose = cv2.resize(nose, (128, 128))
-            eye1 = cv2.resize(eye1, (128, 128))
-            eye2 = cv2.resize(eye2, (128, 128))
+            # eye1 = cv2.resize(eye1, (128, 128))
+            # eye2 = cv2.resize(eye2, (128, 128))
             eyes = cv2.resize(eyes, (256, 128))
             
-            if save_landmarks and save_path:
-                cv2.imwrite(f'{save_path}/mouth/{frame}.jpg', mouth)
-                cv2.imwrite(f'{save_path}/nose/{frame}.jpg', nose)
-                cv2.imwrite(f'{save_path}/left-eye/{frame}.jpg', eye1)
-                cv2.imwrite(f'{save_path}/right-eye/{frame}.jpg', eye2)
-                cv2.imwrite(f'{save_path}/both-eyes/{frame}.jpg', eyes)
+            
+            cv2.imwrite(f'{save_path}/mouth/{frame}.jpg', mouth)
+            cv2.imwrite(f'{save_path}/nose/{frame}.jpg', nose)
+            # cv2.imwrite(f'{save_path}/left-eye/{frame}.jpg', eye1)
+            # cv2.imwrite(f'{save_path}/right-eye/{frame}.jpg', eye2)
+            cv2.imwrite(f'{save_path}/both-eyes/{frame}.jpg', eyes)
 
         else:
             count += 1
@@ -156,8 +160,6 @@ def main():
     args = parser.parse_args()
     file_type = '.mp4'
     # will fail if there is no folder labeled 'fake' and 'real'
-
-    save_landmarks = args.landmark_save.lower() == 'true'
     
     fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, device='cuda')
 
@@ -168,8 +170,8 @@ def main():
     for subfolder in subfolders:
         file_list = [video_label for video_label in os.listdir(os.path.join(args.folder_input, subfolder))]
         for vid in file_list:
-            path = create_directory(os.path.join(args.save_output, subfolder, vid))
-            process_faces(fa, os.path.join(args.folder_input, subfolder), vid, save_path=path, save_landmarks=save_landmarks)
+            output_path = create_directory(os.path.join(args.save_output, subfolder, vid))
+            process_faces(fa, os.path.join(args.folder_input, subfolder), vid, output_path)
             print(f'Finished processing video {vid}')
             count_processed += 1
         print(f'Finished processing {subfolder} videos')

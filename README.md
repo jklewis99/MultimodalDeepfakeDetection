@@ -5,10 +5,5 @@ An open-source repository that provides the code for the research conducted at t
 ```
 python landmark_preprocess.py --folder-input path\to\processed\videos --save-output path\to\save\output
 ```
-## Command to process landmarks and save the landmark images*
-```
-python landmark_preprocess.py --folder-input path\to\processed\videos --save-output path\to\save\output --landmark-save True
-```
-
 
 \* = requires that the folder contains folders labeled 'real' and 'fake'
