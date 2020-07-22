@@ -3,7 +3,6 @@ import cv2
 import os
 import time
 import numpy as np
-from dct_processing import dct_antidiagonal_on_sequence
 import torch
 import argparse
 
@@ -20,6 +19,9 @@ def create_directory(save_path, label, video_file, file_type='.mp4'):
         os.mkdir('{}/{}/{}'.format(save_path, label, name))
     return '{}/{}/{}'.format(save_path, label, name)
 
+def create_landmark_dir(save_path, landmark):
+    if not os.path.isdir(f'{save_path}/{landmark}'):
+        os.mkdir(f'{save_path}/{landmark}')
 '''
 Landmarks from face_alignment are located as follows:
     Landmark | indices
@@ -118,16 +120,23 @@ def get_position(size, padding=0.25):
     y = y * size
     return np.array(list(zip(x, y)))
 
+def get_frame(img_id):
+    return img_id[-8:-4]
+
 def get_landmarks_from_directory(path, fa):
     '''
     process the faces in a directory and find their landmark points
     '''
     faces = os.listdir(path)
-    read_images = [cv2.imread(os.path.join(path, face)) for face in faces]
+    labels = []
+    read_images = []
+    for face in faces:
+        read_images.append(cv2.imread(os.path.join(path, face)))
+        labels.append(get_frame(face))
     read_images = list(filter(lambda im: not im is None, read_images))
-    list_landmark_points = [fa.get_landmarks(img) for img in read_images]
+    list_landmark_points = [fa.get_landmarks(img, detected_faces=[np.array([0, 0, 298, 298])]) for img in read_images]
     
-    return list_landmark_points, read_images
+    return list_landmark_points, read_images, labels
 
 def landmark_boundaries(front256, img):
     '''
@@ -153,29 +162,19 @@ def get_landmark_box(img, x, y, w, square=True):
         img = img[y - w // 2: y + w // 2, x - w : x + w, ...]
     return img
 
-def save_frame(folder_to_write, img, name):
-    cv2.imwrite('{}/{}.jpg'.format(folder_to_write, name), img)
-    dct_frame(folder_to_write, img, name)
-
-def save_mouth_sequence(video, video_id, save_path=None):
-    video = np.stack(video, axis=0).astype(np.float32)
-    video = torch.FloatTensor(video.transpose(3, 0, 1, 2)) / 255.0
-    if save_path:
-        torch.save(video, '{}/{}-lipnet-mouths.pt'.format(save_path, video_id))
-    return video
-
 def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False):
-    list_dir_landmarks, faces_array = get_landmarks_from_directory(os.path.join(input_path, video_id), fa)
+    list_dir_landmarks, faces_array, labels = get_landmarks_from_directory(os.path.join(input_path, video_id), fa)
     front256 = get_position(256)
     count = 0
-    mouth_video = []
-    nose_video = []
-    eye1_video =[]
-    eye2_video = []
-    eyes_video = []
-    LipNet_sequence = []
-    for i, data in enumerate(zip(list_dir_landmarks, faces_array)):
-        preds, face = data
+
+    create_landmark_dir(save_path, 'mouth')
+    create_landmark_dir(save_path, 'both-eyes')
+    create_landmark_dir(save_path, 'nose')
+    create_landmark_dir(save_path, 'left-eye')
+    create_landmark_dir(save_path, 'right-eye')
+
+    for frame, preds, face in zip(labels, list_dir_landmarks, faces_array):
+
         if preds is not None:
             shape = np.array(preds[0]) # get the list of landmarks
             shape = shape[17:] # diregard the face endpoints
@@ -184,40 +183,22 @@ def process_faces(fa, input_path, video_id, save_path=None, save_landmarks=False
             img = cv2.warpAffine(face, M[:2], (256, 256))
             mouth, nose, eye1, eye2, eyes = landmark_boundaries(front256, img)
             
-            LipNet_sequence.append(cv2.resize(mouth, (128, 64)))
             mouth = cv2.resize(mouth, (256, 128))
             nose = cv2.resize(nose, (128, 128))
             eye1 = cv2.resize(eye1, (128, 128))
             eye2 = cv2.resize(eye2, (128, 128))
             eyes = cv2.resize(eyes, (256, 128))
-            mouth_video.append(mouth)
-            nose_video.append(nose)
-            eye1_video.append(eye1)
-            eye2_video.append(eye2)
-            eyes_video.append(eyes)
+            
             if save_landmarks and save_path:
-                cv2.imwrite(f'{save_path}/{video_id}-mouth-{i:04d}.jpg', mouth)
-                cv2.imwrite(f'{save_path}/{video_id}-nose-{i:04d}.jpg', nose)
-                cv2.imwrite(f'{save_path}/{video_id}-eye1-{i:04d}.jpg', eye1)
-                cv2.imwrite(f'{save_path}/{video_id}-eye2-{i:04d}.jpg', eye2)
-                cv2.imwrite(f'{save_path}/{video_id}-botheyes-{i:04d}.jpg', eyes)
+                cv2.imwrite(f'{save_path}/mouth/{frame}.jpg', mouth)
+                cv2.imwrite(f'{save_path}/nose/{frame}.jpg', nose)
+                cv2.imwrite(f'{save_path}/left-eye/{frame}.jpg', eye1)
+                cv2.imwrite(f'{save_path}/right-eye/{frame}.jpg', eye2)
+                cv2.imwrite(f'{save_path}/both-eyes/{frame}.jpg', eyes)
 
         else:
             count+= 1
             print('No Preds:', count)
-
-    save_mouth_sequence(LipNet_sequence, video_id, save_path)
-    dct_mouth_video = dct_antidiagonal_on_sequence(mouth_video)
-    dct_nose_video = dct_antidiagonal_on_sequence(nose_video)
-    dct_eye1_video = dct_antidiagonal_on_sequence(eye1_video)
-    dct_eye2_video = dct_antidiagonal_on_sequence(eye2_video)
-    dct_botheyes_video = dct_antidiagonal_on_sequence(eyes_video)
-    if save_path is not None:
-        np.save('{}/{}-mouth-dct'.format(save_path, video_id), dct_mouth_video)
-        np.save('{}/{}-nose-dct'.format(save_path, video_id), dct_nose_video)
-        np.save('{}/{}-eye1-dct'.format(save_path, video_id), dct_eye1_video)
-        np.save('{}/{}-eye2-dct'.format(save_path, video_id), dct_eye2_video)
-        np.save('{}/{}-botheyes-dct'.format(save_path, video_id), dct_botheyes_video)
 
 def main():
     args = parser.parse_args()
