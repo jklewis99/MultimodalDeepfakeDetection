@@ -67,8 +67,8 @@ def main():
 
     net = xception().to('cuda')
 
-    for split in ('fake', 'real'):
-        for path in tqdm(fakelist, desc=f'Processing {split} files'):
+    for flist, split in zip([fakelist, reallist], ['fake', 'real']):
+        for path in tqdm(flist, desc=f'Processing {split} files'):
             fileid = get_file_id(path)
             outpath = os.path.join(output_dir, split, fileid)
             feats_from_dir(path, outpath, net)
