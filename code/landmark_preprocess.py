@@ -93,7 +93,7 @@ def get_landmarks_from_directory(path, fa):
         labels.append(get_frame(face))
     read_images = list(filter(lambda im: not im is None, read_images))
     list_landmark_points = [fa.get_landmarks(
-        img, detected_faces=[np.array([0, 0, 298, 298])]) for img in read_images]
+        img, detected_faces=[np.array([0, 0, 298, 298, 1])]) for img in read_images]
 
     return list_landmark_points, read_images, labels
 
@@ -146,6 +146,7 @@ def process_faces(fa, input_path, video_id, save_path):
             # get the list of landmarks
             # shape = preds[0] # this command works on my computer, but not lewis
             # this command works on Lewis, but not my computer
+            print(preds)
             shape = preds[0][0]
             shape = shape[17:]  # diregard the face endpoints
             M = transformation_from_points(
@@ -177,7 +178,7 @@ def main():
     # will fail if there is no folder labeled 'fake' and 'real'
 
     fa = face_alignment.FaceAlignment(
-        face_alignment.LandmarksType._2D, device='cpu')
+        face_alignment.LandmarksType._2D, device='cuda')
 
     start = time.time()
     count_processed = 0
