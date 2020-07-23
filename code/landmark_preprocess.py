@@ -146,9 +146,10 @@ def process_faces(fa, input_path, video_id, save_path):
             # get the list of landmarks
             # shape = preds[0] # this command works on my computer, but not lewis
             # this command works on Lewis, but not my computer
-            print(preds)
-            shape = preds[0][0]
+            # print(preds)
+            shape = np.array(preds[0][0])
             shape = shape[17:]  # diregard the face endpoints
+            print(shape.shape, front256.shape)
             M = transformation_from_points(
                 np.matrix(shape), np.matrix(front256))  # transform the face
 
