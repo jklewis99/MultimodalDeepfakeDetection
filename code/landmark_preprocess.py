@@ -147,10 +147,8 @@ def process_faces(fa, input_path, video_id, save_path):
             # shape = preds[0] # this command works on my computer, but not lewis
             # this command works on Lewis, but not my computer
             # print(preds)
-            print(preds)
-            print(preds[0])
-            print(preds[0][0])
-            shape = np.array(preds[0][0])
+
+            shape = np.array(preds[0])
             shape = shape[17:]  # diregard the face endpoints
             print(shape.shape, front256.shape)
             M = transformation_from_points(
