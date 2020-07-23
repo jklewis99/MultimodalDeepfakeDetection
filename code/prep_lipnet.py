@@ -19,6 +19,21 @@ def normalize_mouth_sequence(video):
     return video
 
 def create_mouth_batch(input_path, save_path, batch_size=24, img_type='jpg'):
+    '''
+    create batches that prepare the input for LipNet model
+
+    Args
+    -------------------------------------------------------------------------
+    input_path:
+    save_path:
+    -------------------------------------------------------------------------
+    
+    KeywordArgs:
+    -------------------------------------------------------------------------
+    batch_size: number of images per sequence
+    img_type: file type of saved images
+    ------------------------------------------------------------------------- 
+    '''
     frame_ids = get_frame_ids(input_path, img_type=img_type)
 
     mouth_batch = []

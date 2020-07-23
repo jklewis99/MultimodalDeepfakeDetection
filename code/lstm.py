@@ -140,8 +140,6 @@ def get_face_endpoints(img, detections, with_keypoints=False):
     if detections.ndim == 1:
         detections = np.expand_dims(detections, axis=0)
 
-    # print("Found %d face(s)" % detections.shape[0])
-    # print('Face endpoints on 128x128 image:')
     detected_faces_endpoints = []
 
     for i in range(detections.shape[0]):  # dependent on number of faces found
@@ -162,7 +160,6 @@ def get_face_endpoints(img, detections, with_keypoints=False):
                 circle = patches.Circle((kp_x, kp_y), radius=0.5, linewidth=1,
                                         edgecolor="lightskyblue", facecolor="none",
                                         alpha=detections[i, 16])
-                # ax.add_patch(circle)
 
     return detected_faces_endpoints
 
@@ -252,7 +249,7 @@ def convert_scores(label):
 
 
 def train(training_data):
-    batch_size = 69  # nice
+    batch_size = 69 
     model = MyLSTM()
     loss_function = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
