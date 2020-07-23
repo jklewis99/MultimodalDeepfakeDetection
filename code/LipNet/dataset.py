@@ -74,7 +74,7 @@ class PhonemeDataset(Dataset):
             lines = [line.strip().split(' ') for line in f.readlines()]
             txt = [line[2] for line in lines]
             txt = list(filter(lambda s: not s.upper() in ['SIL', 'SP'], txt))
-        return MyDataset.txt2arr(' '.join(txt).upper(), 1)
+        return PhonemeDataset.txt2arr(' '.join(txt).upper(), 1)
 
     def _padding(self, array, length):
         array = [array[_] for _ in range(array.shape[0])]
@@ -87,7 +87,7 @@ class PhonemeDataset(Dataset):
     def txt2arr(txt, start):
         arr = []
         for c in list(txt):
-            arr.append(MyDataset.letters.index(c) + start)
+            arr.append(Phoneme.letters.index(c) + start)
         return np.array(arr)
 
     @staticmethod
@@ -95,7 +95,7 @@ class PhonemeDataset(Dataset):
         txt = []
         for n in arr:
             if(n >= start):
-                txt.append(MyDataset.letters[n - start])
+                txt.append(PhonemeDataset.letters[n - start])
         return ''.join(txt).strip()
 
     @staticmethod
@@ -104,10 +104,10 @@ class PhonemeDataset(Dataset):
         txt = []
         for n in arr:
             if(pre != n and n >= start):
-                if(len(txt) > 0 and txt[-1] == ' ' and MyDataset.letters[n - start] == ' '):
+                if(len(txt) > 0 and txt[-1] == ' ' and PhonemeDataset.letters[n - start] == ' '):
                     pass
                 else:
-                    txt.append(MyDataset.letters[n - start])
+                    txt.append(PhonemeDataset.letters[n - start])
             pre = n
         return ''.join(txt).strip()
 
