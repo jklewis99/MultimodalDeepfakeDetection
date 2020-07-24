@@ -131,3 +131,6 @@ dmypy.json
 # large files
 input/deepfake-detection-challenge
 .idea
+
+.vscode
+temp_data
