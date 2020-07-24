@@ -4,6 +4,9 @@ from moviepy.editor import *
 import numpy as np
 from Utils.misc import create_directory
 
+CV2_FRAMECOUNT_ID = int(cv2.CAP_PROP_FRAME_COUNT)
+CV2_FPS_ID = int(cv2.CAP_PROP_FPS)
+
 
 def main():
 
@@ -37,7 +40,7 @@ def get_file_id(path):
     return file_id
 
 
-def spectrogram(video_file):
+def spectrogram(video_file, normalize=True):
     """Generates spectrogram of audio content in a video file 
 
     Args:
@@ -49,21 +52,28 @@ def spectrogram(video_file):
     videoclip = VideoFileClip(video_file)
     cap = cv2.VideoCapture(video_file)
 
-    framecount_id = int(cv2.CAP_PROP_FRAME_COUNT)
-    fps_id = int(cv2.CAP_PROP_FPS)
-
-    framecount = int(cv2.VideoCapture.get(cap, framecount_id))
-    fps = cv2.VideoCapture.get(cap, fps_id)
+    framecount = int(cv2.VideoCapture.get(cap, CV2_FRAMECOUNT_ID))
+    fps = cv2.VideoCapture.get(cap, CV2_FPS_ID)
     sample_rate = videoclip.audio.fps
 
     cap.release()
     audio = videoclip.audio.to_soundarray()
+    audio = audio.astype('float32') / 32767  # normalize audio
+    if len(audio.shape) > 1:
+        if audio.shape[1] == 1:
+            audio = audio.squeeze()
+        else:
+            audio = audio.mean(axis=1)  # multiple channels, average
 
     frequencies, times, Sxx = signal.spectrogram(
-        audio[:, 0], nfft=2000, fs=sample_rate, nperseg=int(sample_rate/fps), noverlap=0)
+        audio, nfft=3000, fs=sample_rate, nperseg=int(sample_rate/fps), noverlap=0)
     Sxx = 10 * np.log10(Sxx + np.finfo(float).eps)
     frequencies.shape, times.shape, Sxx.shape
-
+    if normalize:
+        mean = Sxx.mean()
+        std = Sxx.std()
+        Sxx = Sxx - mean
+        Sxx = Sxx / std
     return frequencies, times, Sxx
 
 
