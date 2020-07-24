@@ -3,6 +3,7 @@ import cv2
 from moviepy.editor import *
 import numpy as np
 from Utils.misc import create_directory
+import torch
 
 CV2_FRAMECOUNT_ID = int(cv2.CAP_PROP_FRAME_COUNT)
 CV2_FPS_ID = int(cv2.CAP_PROP_FPS)
@@ -66,7 +67,7 @@ def spectrogram(video_file, normalize=True):
             audio = audio.mean(axis=1)  # multiple channels, average
 
     frequencies, times, Sxx = signal.spectrogram(
-        audio, nfft=3000, fs=sample_rate, nperseg=int(sample_rate/fps), noverlap=0)
+        audio, fs=sample_rate, nperseg=int(sample_rate/fps), noverlap=0)
     Sxx = 10 * np.log10(Sxx + np.finfo(float).eps)
     frequencies.shape, times.shape, Sxx.shape
     if normalize:
@@ -96,18 +97,20 @@ def feats_from_vid(vid_path, face_path, outpath):
         if not os.path.exists(fpath):
             if len(currentseq) != 0:
                 currentseq = np.stack(currentseq)
+                currentseq = torch.FloatTensor(currentseq)
                 outfile = os.path.join(outpath, vname)
-                np.save(
-                    f'{outfile}-{counter:03d}-{currentseq.shape[0]}.npy', currentseq)
+                torch.save(
+                    currentseq, f'{outfile}-{counter:03d}-{currentseq.shape[0]}.pt')
                 counter += 1
                 currentseq = []
             continue
 
         if len(currentseq) == 24:
             currentseq = np.stack(currentseq)
+            currentseq = torch.FloatTensor(currentseq)
             outfile = os.path.join(outpath, vname)
-            np.save(
-                f'{outfile}-{counter:03d}-{currentseq.shape[0]}.npy', currentseq)
+            torch.save(currentseq,
+                       f'{outfile}-{counter:03d}-{currentseq.shape[0]}.pt')
             counter += 1
             currentseq = []
 
