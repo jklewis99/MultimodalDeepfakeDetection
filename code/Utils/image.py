@@ -34,6 +34,12 @@ def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
     # return the resized image
     return resized
 
+def min_dim_image_resize(image, min_dim):
+    if image.shape[0] < image.shape[1]:
+        resized_img = image_resize(image, height=min_dim)
+    else:
+        resized_img = image_resize(image, width=min_dim)
+    return resized_img
 
 def load_dir(path):
     """

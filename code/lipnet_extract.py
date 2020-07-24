@@ -8,14 +8,15 @@ from torch import nn
 from Utils.misc import create_directory, get_frame_ids
 
 parser = argparse.ArgumentParser(description='LipNet Processing Transcription')
-parser.add_argument('--input', default=None, help="Folder containing all of the video id folders \
-                                                          that each contain a mouth folder of aligned mouth images")
-parser.add_argument('--output', default=None, 
-                    help="Saves LipNet tensor to this file_path. It will create a fake and real folder, in which the \
-                          video label folder will be created containing the tensors")
-parser.add_argument('--seq-size', default=24, help="Maximum size of sequence")
-parser.add_argument('--device', default='cuda', help="device for model")
-parser.add_argument('--pretrained', 
+parser.add_argument('input', help="Folder containing fake and real folders, inside those folders \
+                                   all of the video id folders that each contain a mouth folder \
+                                   of aligned mouth images")
+parser.add_argument('output', help="Saves LipNet tensor to this file_path. It will create a fake \
+                                    and real folder, in which the video label folder will be \
+                                    created containing the tensors")
+parser.add_argument('-seq-size', default=24, help="Maximum size of sequence (default 24)")
+parser.add_argument('-device', default='cuda', help="device for model (default cuda)")
+parser.add_argument('-pretrained', 
                     default='LipNet/pretrain/LipNet_unseen_loss_0.44562849402427673_wer_0.1332580699113564_cer_0.06796452465503355.pt',
                     help='path to pretrained weights for LipNet model')
 

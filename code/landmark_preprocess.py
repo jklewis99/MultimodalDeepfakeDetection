@@ -8,12 +8,10 @@ from Utils.misc import create_directory
 
 parser = argparse.ArgumentParser(
     description='Landmark Processing Transcription')
-parser.add_argument('--folder-input', default=None,
-                    help="Folder containing all of the video id folders that contain face images")
-parser.add_argument('--save-output', default=None,
-                    help="Saves landmark images to this file path, in which folders 'real' and 'fake'\
-                        will be created. Inside of the real and fake folders, the labels for the video will be\
-                        created, in which folders for landmarks will be saved.")
+parser.add_argument('input', help="Folder containing all of the video id folders that contain face images")
+parser.add_argument('output', help="Saves landmark images to this file path, in which folders 'real' and  \
+                                    'fake' will be created. Inside of the real and fake folders, the labels \
+                                    for the video will be created, in which folders for landmarks will be saved.")
 
 '''
 Landmarks from face_alignment are located as follows:
@@ -188,12 +186,12 @@ def main():
     total_videos = 0
     for subfolder in subfolders:
         file_list = [video_label for video_label in os.listdir(
-            os.path.join(args.folder_input, subfolder))]
+            os.path.join(args.input, subfolder))]
         for vid in file_list:
             output_path = create_directory(
-                os.path.join(args.save_output, subfolder, vid))
+                os.path.join(args.output, subfolder, vid))
             process_faces(fa, os.path.join(
-                args.folder_input, subfolder), vid, output_path)
+                args.input, subfolder), vid, output_path)
             print(f'Finished processing video {vid}')
             count_processed += 1
         print(f'Finished processing {subfolder} videos')

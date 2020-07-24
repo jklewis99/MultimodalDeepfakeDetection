@@ -1,5 +1,6 @@
-import numpy as np
 import cv2
+import numpy as np
+from Utils.image import min_dim_image_resize
 
 def antidiag_avg(x):
     '''
@@ -24,7 +25,7 @@ def squared_image(img):
     height, width = img.shape
     return img[height % 2 :, width % 2 :]
 
-def dct_antidiagonal_on_image(img):
+def dct_antidiagonal_on_image(img, information_size=128):
     '''
     method to take the dct of a 2D array and calculate its antidiagonal average and save as a numpy array
     
@@ -33,15 +34,14 @@ def dct_antidiagonal_on_image(img):
     
     if len(img.shape) != 2:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        
+
+    img = min_dim_image_resize(img, information_size) 
     img = img / 255
     img = squared_image(img)
     dct = cv2.dct(img)
     dct = np.log(dct - dct.min() + 1)
     norm_dct = (dct - dct.min()) / (dct.max() - dct.min()) # normalize
-    if norm_dct.shape[0] > 127 and norm_dct.shape[1] > 127:
-        return antidiag_avg(norm_dct[:128, :128])
-    return None
+    return antidiag_avg(norm_dct[:information_size, :information_size])
 
 def dct_antidiagonal_on_sequence(imgs):
     '''
@@ -50,7 +50,6 @@ def dct_antidiagonal_on_sequence(imgs):
     antidiag_avgs = []
     for img in imgs:
         antidiag_avg = dct_antidiagonal_on_image(img)
-        if antidiag_avg is not None:
-            antidiag_avgs.append(dct_antidiagonal_on_image(img))
+        antidiag_avgs.append(antidiag_avg)
     antidiag_avgs = np.stack(antidiag_avgs)
     return antidiag_avgs
