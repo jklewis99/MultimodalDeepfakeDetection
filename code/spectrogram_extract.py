@@ -67,7 +67,7 @@ def spectrogram(video_file, normalize=True):
             audio = audio.mean(axis=1)  # multiple channels, average
 
     frequencies, times, Sxx = signal.spectrogram(
-        audio, nfft=3000, fs=sample_rate, nperseg=int(sample_rate/fps), noverlap=0)
+        audio, fs=sample_rate, nperseg=int(sample_rate/fps), noverlap=0)
     Sxx = 10 * np.log10(Sxx + np.finfo(float).eps)
     frequencies.shape, times.shape, Sxx.shape
     if normalize:
