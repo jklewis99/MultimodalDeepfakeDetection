@@ -1,3 +1,5 @@
+import librosa
+import soundfile as sf
 from scipy import signal
 import cv2
 from moviepy.editor import *
@@ -41,6 +43,38 @@ def get_file_id(path):
     return file_id
 
 
+def load_audio(path):
+    videoclip = VideoFileClip(video_file)
+    audio = videoclip.audio.set_fps(16000).to_soundarray()
+    return sound
+
+
+def parse_audio(audio_path, normalize=True):
+    sample_rate = 16000  # The sample rate for the data/model features
+    window_size = .02  # Window size for spectrogram generation (seconds)
+    window_stride = .01  # Window stride for spectrogram generation (seconds)
+
+    y = load_audio(audio_path)
+
+    n_fft = int(sample_rate * window_size)
+    win_length = n_fft
+    hop_length = int(sample_rate * window_stride)
+    # STFT
+    D = librosa.stft(y, n_fft=n_fft, hop_length=hop_length,
+                     win_length=win_length, window=self.window)
+    spect, phase = librosa.magphase(D)
+    # S = log(S+1)
+    spect = np.log1p(spect)
+    spect = torch.FloatTensor(spect)
+    if normalize:
+        mean = spect.mean()
+        std = spect.std()
+        spect.add_(-mean)
+        spect.div_(std)
+
+    return spect
+
+
 def spectrogram(video_file, normalize=True):
     """Generates spectrogram of audio content in a video file 
 
@@ -50,16 +84,18 @@ def spectrogram(video_file, normalize=True):
     Returns:
         [type]: [description]
     """
+
     videoclip = VideoFileClip(video_file)
+    audio = videoclip.audio.set_fps(16000).to_soundarray()
     cap = cv2.VideoCapture(video_file)
 
     framecount = int(cv2.VideoCapture.get(cap, CV2_FRAMECOUNT_ID))
     fps = cv2.VideoCapture.get(cap, CV2_FPS_ID)
+
     sample_rate = videoclip.audio.fps
 
     cap.release()
-    audio = videoclip.audio.to_soundarray()
-    audio = audio.astype('float32') / 32767  # normalize audio
+
     if len(audio.shape) > 1:
         if audio.shape[1] == 1:
             audio = audio.squeeze()
@@ -79,6 +115,7 @@ def spectrogram(video_file, normalize=True):
 
 
 def feats_from_vid(vid_path, face_path, outpath):
+    # Sxx = parse_audio(vid_path)
     frequencies, times, Sxx = spectrogram(vid_path)
     Sxx = Sxx.transpose()
 
