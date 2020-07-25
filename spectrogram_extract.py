@@ -94,7 +94,7 @@ def spectrogram(video_file, normalize=True):
     videoclip = VideoFileClip(video_file)
     audio = videoclip.audio
     if audio is None:
-        Sxx = np.zeros(framecount, 736)
+        Sxx = np.zeros(framecount, 533)
     else:
         audio = audio.set_fps(16000).to_soundarray()
         sample_rate = videoclip.audio.fps
@@ -116,12 +116,12 @@ def spectrogram(video_file, normalize=True):
         std = Sxx.std()
         Sxx = Sxx - mean
         Sxx = Sxx / std
-    return frequencies, times, Sxx
+    return Sxx
 
 
 def feats_from_vid(vid_path, face_path, outpath):
     # Sxx = parse_audio(vid_path)
-    frequencies, times, Sxx = spectrogram(vid_path)
+    Sxx = spectrogram(vid_path)
     Sxx = Sxx.transpose()
 
     vname = get_file_id(vid_path)
