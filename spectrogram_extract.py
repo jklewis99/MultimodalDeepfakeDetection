@@ -94,7 +94,7 @@ def spectrogram(video_file, normalize=True):
     videoclip = VideoFileClip(video_file)
     audio = videoclip.audio
     if audio is None:
-        Sxx = np.zeros(framecount, 533)
+        Sxx = np.zeros((framecount, 533))
     else:
         audio = audio.set_fps(16000).to_soundarray()
         sample_rate = videoclip.audio.fps
