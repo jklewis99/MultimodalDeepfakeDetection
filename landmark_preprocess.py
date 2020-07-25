@@ -8,7 +8,8 @@ from Utils.misc import create_directory
 
 parser = argparse.ArgumentParser(
     description='Landmark Processing Transcription')
-parser.add_argument('input', help="Folder containing all of the video id folders that contain face images")
+parser.add_argument(
+    'input', help="Folder containing all of the video id folders that contain face images")
 parser.add_argument('output', help="Saves landmark images to this file path, in which folders 'real' and  \
                                     'fake' will be created. Inside of the real and fake folders, the labels \
                                     for the video will be created, in which folders for landmarks will be saved.")
@@ -188,6 +189,8 @@ def main():
         file_list = [video_label for video_label in os.listdir(
             os.path.join(args.input, subfolder))]
         for vid in file_list:
+            if os.path.exists(os.path.join(args.output, subfolder, vid)):
+                continue
             output_path = create_directory(
                 os.path.join(args.output, subfolder, vid))
             process_faces(fa, os.path.join(
