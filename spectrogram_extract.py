@@ -17,17 +17,17 @@ def main():
     faces_dir = sys.argv[2]
     output_dir = sys.argv[3]
 
-    fakelist = [os.path.join(input_dir, 'fake', p)
-                for p in os.listdir(os.path.join(input_dir, 'fake'))]
+    fakelist = sorted([os.path.join(input_dir, 'fake', p)
+                       for p in os.listdir(os.path.join(input_dir, 'fake'))])
 
-    reallist = [os.path.join(input_dir, 'real', p)
-                for p in os.listdir(os.path.join(input_dir, 'real'))]
+    reallist = sorted([os.path.join(input_dir, 'real', p)
+                       for p in os.listdir(os.path.join(input_dir, 'real'))])
 
-    face_fakelist = [os.path.join(faces_dir, 'fake', p)
-                     for p in os.listdir(os.path.join(faces_dir, 'fake'))]
+    face_fakelist = sorted([os.path.join(faces_dir, 'fake', p)
+                            for p in os.listdir(os.path.join(faces_dir, 'fake'))])
 
-    face_reallist = [os.path.join(faces_dir, 'real', p)
-                     for p in os.listdir(os.path.join(faces_dir, 'real'))]
+    face_reallist = sorted([os.path.join(faces_dir, 'real', p)
+                            for p in os.listdir(os.path.join(faces_dir, 'real'))])
 
     for flist, facelist, split in zip([fakelist, reallist], [face_fakelist, face_reallist], ['fake', 'real']):
         for vid_path, face_path in zip(flist, facelist):
