@@ -45,7 +45,10 @@ def get_file_id(path):
 
 def load_audio(path):
     videoclip = VideoFileClip(video_file)
-    audio = videoclip.audio.set_fps(16000).to_soundarray()
+    audio = videoclip.audio
+    # if audio is None:
+
+    audio = audio.set_fps(16000).to_soundarray()
     return sound
 
 
@@ -84,28 +87,30 @@ def spectrogram(video_file, normalize=True):
     Returns:
         [type]: [description]
     """
-
-    videoclip = VideoFileClip(video_file)
-    audio = videoclip.audio.set_fps(16000).to_soundarray()
     cap = cv2.VideoCapture(video_file)
-
     framecount = int(cv2.VideoCapture.get(cap, CV2_FRAMECOUNT_ID))
     fps = cv2.VideoCapture.get(cap, CV2_FPS_ID)
 
-    sample_rate = videoclip.audio.fps
+    videoclip = VideoFileClip(video_file)
+    audio = videoclip.audio
+    if audio is None:
+        Sxx = np.zeros(framecount, 736)
+    else:
+        audio = audio.set_fps(16000).to_soundarray()
+        sample_rate = videoclip.audio.fps
 
-    cap.release()
+        cap.release()
 
-    if len(audio.shape) > 1:
-        if audio.shape[1] == 1:
-            audio = audio.squeeze()
-        else:
-            audio = audio.mean(axis=1)  # multiple channels, average
+        if len(audio.shape) > 1:
+            if audio.shape[1] == 1:
+                audio = audio.squeeze()
+            else:
+                audio = audio.mean(axis=1)  # multiple channels, average
 
-    frequencies, times, Sxx = signal.spectrogram(
-        audio, fs=sample_rate, nperseg=int(sample_rate/fps), noverlap=0)
-    Sxx = 10 * np.log10(Sxx + np.finfo(float).eps)
-    frequencies.shape, times.shape, Sxx.shape
+        frequencies, times, Sxx = signal.spectrogram(
+            audio, fs=sample_rate, nperseg=int(sample_rate/fps), noverlap=0)
+        Sxx = 10 * np.log10(Sxx + np.finfo(float).eps)
+
     if normalize:
         mean = Sxx.mean()
         std = Sxx.std()
