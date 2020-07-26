@@ -15,10 +15,12 @@ parser.add_argument(
 parser.add_argument('output', help="Saves landmark images to this file path, in which folders 'real' and  \
                                     'fake' will be created. Inside of the real and fake folders, the labels \
                                     for the video will be created, in which folders for landmarks will be saved.")
+parser.add_argument('max-proc', default=20,
+                    help="Maximum number of parallel processes.")
 args = parser.parse_args()
 total_videos = 0
 count_processed = 0
-MAX_PARALLEL_PROCS = 50
+MAX_PARALLEL_PROCS = args.max_proc
 
 '''
 Landmarks from face_alignment are located as follows:
