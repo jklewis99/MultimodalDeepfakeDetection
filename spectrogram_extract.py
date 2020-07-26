@@ -78,7 +78,7 @@ def parse_audio(audio_path, normalize=True):
     return spect
 
 
-def spectrogram(video_file, normalize=True):
+def spectrogram(video_file, normalize=True, sample_rate=44_100):
     """Generates spectrogram of audio content in a video file 
 
     Args:
@@ -90,17 +90,14 @@ def spectrogram(video_file, normalize=True):
     cap = cv2.VideoCapture(video_file)
     framecount = int(cv2.VideoCapture.get(cap, CV2_FRAMECOUNT_ID))
     fps = cv2.VideoCapture.get(cap, CV2_FPS_ID)
+    cap.release()
 
     videoclip = VideoFileClip(video_file)
     audio = videoclip.audio
     if audio is None:
         Sxx = np.zeros((framecount, 533))
     else:
-        audio = audio.set_fps(16000).to_soundarray()
-        sample_rate = videoclip.audio.fps
-
-        cap.release()
-
+        audio = audio.set_fps(sample_rate).to_soundarray()
         if len(audio.shape) > 1:
             if audio.shape[1] == 1:
                 audio = audio.squeeze()
