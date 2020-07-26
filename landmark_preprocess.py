@@ -149,7 +149,7 @@ def process_faces(fa, input_path, video_id, save_path):
 
             shape = np.array(preds[0])
             shape = shape[17:]  # diregard the face endpoints
-            print(shape.shape, front256.shape)
+
             M = transformation_from_points(
                 np.matrix(shape), np.matrix(front256))  # transform the face
 
