@@ -216,14 +216,14 @@ def main():
 
         total_videos += len(file_list)
 
-    landmark_args_list = split_list(landmark_args, 20)
-    for landmark_args in landmark_args_list:
-        with concurrent.futures.ProcessPoolExecutor(mp_context=multiprocessing.get_context('spawn')) as executor:
-            results = [executor.submit(process_video, fa, subfolder, vid)
-                       for subfolder, vid in landmark_args]
+    # landmark_args_list = split_list(landmark_args, 20)
+    # for landmark_args in landmark_args_list:
+    with concurrent.futures.ProcessPoolExecutor(mp_context=multiprocessing.get_context('spawn')) as executor:
+        results = [executor.submit(process_video, fa, subfolder, vid)
+                   for subfolder, vid in landmark_args]
 
-            for f in concurrent.futures.as_completed(results):
-                print(f.result())
+        for f in concurrent.futures.as_completed(results):
+            print(f.result())
 
     process_time = time.time() - start
     print('PROCESS TIME: {:.3f} h for {} videos (out of {})'.format(
