@@ -1,9 +1,11 @@
+import multiprocessing
 import face_alignment
 import cv2
 import os
 import time
 import numpy as np
 import argparse
+import concurrent.futures
 from Utils.misc import create_directory
 
 parser = argparse.ArgumentParser(
@@ -13,6 +15,9 @@ parser.add_argument(
 parser.add_argument('output', help="Saves landmark images to this file path, in which folders 'real' and  \
                                     'fake' will be created. Inside of the real and fake folders, the labels \
                                     for the video will be created, in which folders for landmarks will be saved.")
+args = parser.parse_args()
+total_videos = 0
+count_processed = 0
 
 '''
 Landmarks from face_alignment are located as follows:
@@ -173,8 +178,19 @@ def process_faces(fa, input_path, video_id, save_path):
             print('No Preds:', count)
 
 
+def process_video(fa, subfolder, vid):
+    global count_processed
+    output_path = create_directory(
+        os.path.join(args.output, subfolder, vid))
+    process_faces(fa, os.path.join(
+        args.input, subfolder), vid, output_path)
+    count_processed += 1
+    return f'Finished processing video {vid}'
+
+
 def main():
-    args = parser.parse_args()
+    global count_processed
+    global total_videos
     file_type = '.mp4'
     # will fail if there is no folder labeled 'fake' and 'real'
 
@@ -182,27 +198,29 @@ def main():
         face_alignment.LandmarksType._2D, device='cuda')
 
     start = time.time()
-    count_processed = 0
     subfolders = ['real', 'fake']
-    total_videos = 0
+    landmark_args = []
     for subfolder in subfolders:
         file_list = [video_label for video_label in os.listdir(
             os.path.join(args.input, subfolder))]
+
         for vid in file_list:
             if os.path.exists(os.path.join(args.output, subfolder, vid)):
                 continue
-            output_path = create_directory(
-                os.path.join(args.output, subfolder, vid))
-            process_faces(fa, os.path.join(
-                args.input, subfolder), vid, output_path)
-            print(f'Finished processing video {vid}')
-            count_processed += 1
-        print(f'Finished processing {subfolder} videos')
+            landmark_args.append((subfolder, vid))
+
         total_videos += len(file_list)
 
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        results = [executor.submit(process_video, fa, subfolder, vid)
+                   for subfolder, vid in landmark_args]
+
+        for f in concurrent.futures.as_completed(results):
+            print(f.result())
+
     process_time = time.time() - start
-    print('PROCESS TIME: {:.3f} s for {} videos (out of {})'.format(
-        process_time, count_processed, total_videos))
+    print('PROCESS TIME: {:.3f} h for {} videos (out of {})'.format(
+        process_time / 3600, count_processed, total_videos))
 
 
 if __name__ == '__main__':
