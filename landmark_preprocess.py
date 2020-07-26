@@ -218,7 +218,7 @@ def main():
 
     landmark_args_list = split_list(landmark_args, 20)
     for landmark_args in landmark_args_list:
-        with concurrent.futures.ProcessPoolExecutor() as executor:
+        with concurrent.futures.ProcessPoolExecutor(mp_context=multiprocessing.get_context('spawn')) as executor:
             results = [executor.submit(process_video, fa, subfolder, vid)
                        for subfolder, vid in landmark_args]
 
