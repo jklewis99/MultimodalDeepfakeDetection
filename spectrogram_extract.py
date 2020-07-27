@@ -4,8 +4,10 @@ from scipy import signal
 import cv2
 from moviepy.editor import *
 import numpy as np
-from Utils.misc import create_directory
+from Utils.misc import *
 import torch
+import concurrent.futures
+import multiprocessing
 
 CV2_FRAMECOUNT_ID = int(cv2.CAP_PROP_FRAME_COUNT)
 CV2_FPS_ID = int(cv2.CAP_PROP_FPS)
@@ -29,12 +31,22 @@ def main():
     face_reallist = sorted([os.path.join(faces_dir, 'real', p)
                             for p in os.listdir(os.path.join(faces_dir, 'real'))])
 
+    args_list = []
     for flist, facelist, split in zip([fakelist, reallist], [face_fakelist, face_reallist], ['fake', 'real']):
         for vid_path, face_path in zip(flist, facelist):
             fileid = get_file_id(vid_path)
             outpath = os.path.join(output_dir, split, fileid)
             create_directory(outpath)
-            feats_from_vid(vid_path, face_path, outpath)
+            args_list.append((vid_path, face_path, outpath))
+
+    args_lists = split_list(args_list, 20)
+    for args_list in args_lists:
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            results = [executor.submit(feats_from_vid, vid_path, face_path, outpath)
+                       for vid_path, face_path, outpath in args_list]
+
+            for f in concurrent.futures.as_completed(results):
+                print(f.result())
 
 
 def get_file_id(path):
@@ -154,6 +166,7 @@ def feats_from_vid(vid_path, face_path, outpath):
             currentseq = []
 
         currentseq.append(vec)
+    return f'Processed: {vname}'
 
 
 if __name__ == '__main__':
