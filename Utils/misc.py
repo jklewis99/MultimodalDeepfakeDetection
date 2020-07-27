@@ -1,9 +1,11 @@
 import os
 
+
 def create_directory(path):
     if not os.path.exists(path):
         os.makedirs(path)
     return path
+
 
 def get_frame_ids(input_path, img_type='jpg'):
     mouth_files = os.listdir(input_path)
@@ -12,3 +14,7 @@ def get_frame_ids(input_path, img_type='jpg'):
         if frame_id.endswith('.' + img_type):
             frame_ids.append(int(frame_id[:-4]))
     return frame_ids
+
+
+def split_list(l, n):
+    return [l[i*n:i*n+n] for i in range(len(l) // n + 1)]
