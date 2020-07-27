@@ -56,18 +56,3 @@ class FrimagenetDataset(Dataset):
                         self.classification.append(torch.tensor(self.encode_map[label]))
         self.classification = torch.stack(self.classification)
         return torch.stack(samples)
-
-def main():
-    s = r'J:\reu\MultimodalDeepfakeDetection\output\spectrogram_features'
-    x = r'J:\reu\MultimodalDeepfakeDetection\output\xception_features'
-    data = FrimagenetDataset(s, x)
-    count_real = 0
-    for i, sample in enumerate(data):
-        if sample[1].tolist() == 1:
-            count_real += 1
-        print(sample)
-    print(count_real)
-    print(len(data))
-    
-if __name__ == '__main__':
-    main()
