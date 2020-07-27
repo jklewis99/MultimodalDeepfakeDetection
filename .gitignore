@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 # large files
-input/deepfake-detection-challenge
+DeepSpeech2/pretrained_weights/
 .idea
 
 .vscode

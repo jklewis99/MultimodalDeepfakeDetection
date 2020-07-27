@@ -3,14 +3,13 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 # from Utils.errors import *
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
+from torch.utils.data import Dataset
 
 class FrimagenetDataset(Dataset):
     '''
     FrimageNet data set for concatenating XceptionNet Features and Spectrogram features
     '''
-    def __init__(self, spectrogram_folder, xception_features_folder, transform=None):
+    def __init__(self, spectrogram_folder, xception_features_folder):
         """
         Args:
             spectrogram_folder (string): Path to the csv file with annotations.
@@ -22,7 +21,6 @@ class FrimagenetDataset(Dataset):
             'fake': 0
         }
         self.features = self.__get_feats(spectrogram_folder, xception_features_folder)
-        self.transform = transform
 
     def __len__(self):
         return len(self.features)
