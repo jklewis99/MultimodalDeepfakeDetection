@@ -121,13 +121,12 @@ class FrimageNet(nn.Module):
         self.softmax = nn.Softmax()
 
     def forward(self, x, hidden):
-        print(x.device, hidden[0].device)
-        y, hidden = self.lstm(x, hidden)    # returns the two outputs
-        y = y[:, -1, :]  # get only the last output
-        y = self.act(self.fc1(y))
+        y, hidden = self.lstm(x, hidden)
+        y = self.fc1(y)
+        y = y[:, -1, :]
+        y = self.act(y)
         y = self.fc2(y)
         y = F.softmax(y, dim=1)
-
         return y, hidden
 
     def init_hidden(self, batch_size):
