@@ -229,7 +229,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
     return losses, accs, vlosses, vaccs
 
 
-loss_function = nn.NLLLoss().cuda()
+loss_function = nn.CrossEntropyLoss().cuda()
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 losses, accs, vlosses, vaccs = train(model, trainset, loss_function,
                                      optimizer, epochs=100, batch_size=200)
