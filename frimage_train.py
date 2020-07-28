@@ -192,8 +192,9 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
                 print('[%d, %5d] loss: %.3f - acc: %.3f' %
                       (epoch + 1, i + 1, running_loss / print_every, running_acc * 100 / print_every))
 
-                writer.add_scalar('loss', running_loss / print_every)
-                writer.add_scalar('acc', running_acc * 100 / print_every)
+                writer.add_scalar('train/loss', running_loss / print_every, i)
+                writer.add_scalar('train/acc', running_acc *
+                                  100 / print_every, i)
 
                 losses.append(running_loss / print_every)
                 accs.append(running_acc * 100 / print_every)
@@ -219,8 +220,8 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
                 val_accs = torch.mean(torch.tensor(val_accs))
                 val_losses = torch.mean(torch.tensor(val_losses))
 
-                writer.add_scalar('val_loss', running_loss / print_every)
-                writer.add_scalar('val_acc', running_acc * 100 / print_every)
+                writer.add_scalar('val/loss', val_accs * 100, epoch)
+                writer.add_scalar('val/acc', val_losses, epoch)
 
                 vaccs.append(val_accs)
                 vlosses.append(val_losses)
@@ -231,4 +232,4 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 loss_function = nn.NLLLoss().cuda()
 optimizer = optim.SGD(model.parameters(), lr=0.1)
 losses, accs, vlosses, vaccs = train(model, trainset, loss_function,
-                                     optimizer, epochs=1000, batch_size=100)
+                                     optimizer, epochs=100, batch_size=200)
