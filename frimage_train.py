@@ -105,7 +105,7 @@ valset = FrimagenetDataset(spec_files_val, xcep_files_val)
 
 
 class FrimageNet(nn.Module):
-    def __init__(self, feature_size, num_layers=2, num_hidden_nodes=512, device='cuda'):
+    def __init__(self, feature_size, num_layers=2, num_hidden_nodes=1024, device='cuda'):
         super(FrimageNet, self).__init__()
         self.device = device
         self.num_layers = num_layers
@@ -116,7 +116,7 @@ class FrimageNet(nn.Module):
                             batch_first=True, num_layers=num_layers)
         # fully connected
         self.fc1 = nn.Linear(num_hidden_nodes, num_hidden_nodes)
-        self.act = nn.Sigmoid()
+        self.act = nn.ReLU()
         self.fc2 = nn.Linear(num_hidden_nodes, 2)
         self.softmax = nn.Softmax()
 
