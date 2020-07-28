@@ -166,6 +166,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
     # again, normally you would NOT do 100 epochs, it is toy data
     for epoch in range(epochs):
         for inp, labels in trainloader:  # renamed sequence to inp because inp is a batch of sequences
+            optimizer.zero_grad()
             # Step 1. Remember that Pytorch accumulates gradients.
             # We need to clear them out before each instance
             model.zero_grad()
