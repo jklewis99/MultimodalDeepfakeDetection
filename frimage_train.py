@@ -183,7 +183,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
             # Step 3. Compute the loss, gradients, and update the parameters by
             # calling optimizer.step()
             loss = loss_function(tag_scores, labels)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             loss.backward()
             optimizer.step()
 
@@ -234,6 +234,6 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 
 
 loss_function = nn.NLLLoss().cuda()
-optimizer = optim.Adam(model.parameters(), lr=1e-6)
+optimizer = optim.Adam(model.parameters(), lr=1e-5)
 losses, accs, vlosses, vaccs = train(model, trainset, loss_function,
                                      optimizer, epochs=100, batch_size=200)
