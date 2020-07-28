@@ -100,8 +100,9 @@ class FrimagenetDataset(Dataset):
 
 
 # %%
-trainset = FrimagenetDataset(spec_files_train, xcep_files_train)
-valset = FrimagenetDataset(spec_files_val, xcep_files_val)
+trainset = FrimagenetDataset(
+    spec_files_train, xcep_files_train, max_spec_size=0)
+valset = FrimagenetDataset(spec_files_val, xcep_files_val, max_spec_size=0)
 
 
 class FrimageNet(nn.Module):
@@ -136,7 +137,7 @@ class FrimageNet(nn.Module):
         return hidden
 
 
-model = FrimageNet(2748)
+model = FrimageNet(2048)
 
 
 def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, batch_size=50, device='cuda'):
