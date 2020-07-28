@@ -10,6 +10,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import torch.optim as optim
 from torch import nn
+import torch.nn.functional as F
 
 # %%
 labelmap = {'real': 0, 'fake': 1}
