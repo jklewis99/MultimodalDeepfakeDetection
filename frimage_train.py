@@ -126,7 +126,7 @@ class FrimageNet(nn.Module):
         y = y[:, -1, :]
         y = self.act(y)
         y = self.fc2(y)
-        y = F.softmax(y, dim=1)
+        y = F.log_softmax(y, dim=1)
         return y, hidden
 
     def init_hidden(self, batch_size):
@@ -141,6 +141,8 @@ model = FrimageNet(2748)
 
 def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, batch_size=50, device='cuda'):
     global writer
+    epsilon = 1e-6
+
     model = model.to(device)
     trainloader = DataLoader(trainset, shuffle=True,
                              batch_size=batch_size, drop_last=True)
@@ -176,10 +178,11 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 
             # Step 2. Run our forward pass.
             tag_scores, h = model(inp, hidden)
-
+            tag_scores = tag_scores.add(epsilon)
             # Step 3. Compute the loss, gradients, and update the parameters by
             # calling optimizer.step()
             loss = loss_function(tag_scores, labels)
+            torch.nn.utils.clip_grad_norm_(net.parameters(), 0.5)
             loss.backward()
             optimizer.step()
 
@@ -229,7 +232,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
     return losses, accs, vlosses, vaccs
 
 
-loss_function = nn.CrossEntropyLoss().cuda()
+loss_function = nn.NLLLoss().cuda()
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 losses, accs, vlosses, vaccs = train(model, trainset, loss_function,
                                      optimizer, epochs=100, batch_size=200)
