@@ -124,7 +124,7 @@ class FrimageNet(nn.Module):
         print(x.device, hidden[0].device)
         y, hidden = self.lstm(x, hidden)    # returns the two outputs
         y = y[:, -1, :]  # get only the last output
-        y = self.fc1(y)
+        y = self.act(self.fc1(y))
         y = self.fc2(y)
         y = F.softmax(y, dim=1)
 
