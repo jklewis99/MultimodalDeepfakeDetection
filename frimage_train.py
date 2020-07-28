@@ -153,7 +153,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
     for h in hidden:
         h = h.to(device)
 
-    print_every = 12
+    print_every = 5
     i = 0
     losses = []
     accs = []
