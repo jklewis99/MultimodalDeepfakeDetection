@@ -1,6 +1,7 @@
 from torch import nn
 import torch.nn.functional as F
 
+
 class FrimageNet(nn.Module):
     def __init__(self, feature_size, num_layers=2, hidden_dim=512, device='cuda'):
         super(FrimageNet, self).__init__()
@@ -18,7 +19,7 @@ class FrimageNet(nn.Module):
         self.softmax = nn.Softmax()
 
     def forward(self, x, hidden):
-#         print(x.device, hidden[0].device)
+        #         print(x.device, hidden[0].device)
         y, hidden = self.lstm(x, hidden)    # returns the two outputs
         y = y[:, -1, :]  # get only the last output
         y = self.fc1(y)
@@ -29,6 +30,6 @@ class FrimageNet(nn.Module):
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters()).data
-        hidden = (weight.new(self.num_layers, batch_size, self.hidden_dim).zero_().to(self.device),
-                  weight.new(self.num_layers, batch_size, self.hidden_dim).zero_().to(self.device))
+        hidden = (weight.new(self.num_layers, batch_size, self.num_hidden_nodes).zero_().to(self.device),
+                  weight.new(self.num_layers, batch_size, self.num_hidden_nodes).zero_().to(self.device))
         return hidden

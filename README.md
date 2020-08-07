@@ -24,4 +24,14 @@ Input folder should be a folder containing top-level folders `real` and `fake`. 
 python lipnet_sequence.py path/to/processed/video-landmarks/ path/to/save/output
 ```
 
-Input folder should be a folder containing top-level folders `real` and `fake`. These folders contain video-label-named folders in which landmark-named folders (`mouth`, `nose`, `both-eyes`) are hosted. This `lipnet_sequence.py` script will take the mouths in this directory and save them into torches and then send this sequence through the [LipNet](https://github.com/Fengdalu/LipNet-PyTorch) model and extract the final features before the fully connected layer. See `lipnet_sequence.py --help` for more information.
+Input folder should be a folder containing top-level folders `real` and `fake`.
+
+```
+input_folder
+    - real
+        - *.mp4
+    - fake
+        - *.mp4
+```
+
+These folders contain video-label-named folders in which landmark-named folders (`mouth`, `nose`, `both-eyes`) are hosted. This `lipnet_sequence.py` script will take the mouths in this directory and save them into torches and then send this sequence through the [LipNet](https://github.com/Fengdalu/LipNet-PyTorch) model and extract the final features before the fully connected layer. See `lipnet_sequence.py --help` for more information.
