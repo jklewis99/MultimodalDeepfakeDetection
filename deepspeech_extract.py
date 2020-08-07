@@ -13,6 +13,7 @@ from moviepy.editor import VideoFileClip
 from scipy import signal
 from Utils.audio import parse_audio_spect
 from Utils.misc import create_directory
+import time
 
 parser = argparse.ArgumentParser(description='DeepSpeech2 Feature Extraction')
 parser.add_argument('input', help="Folder containing fake and real folders, inside those folders \
@@ -25,31 +26,29 @@ parser.add_argument('-pretrained',
                     default='DeepSpeech2/pretrained_weights/librispeech_pretrained_v2.pth',
                     help='path to pretrained weights for DeepSpeech2 model')
 
-def get_deepspeech2_features(model, input_path, save_path, video_id, 
+def save_deepspeech2_features(model, input_path, save_path, video_id, 
                              window_stride = .01,
                              window_size = .02,
                              sample_rate = 16000,
                              window = 'hamming'):
     spect = parse_audio_spect(input_path, window_stride, window_size, sample_rate, window)
-    tspect = spect.transpose()
-    spect = torch.cuda.FloatTensor(spect).unsqueeze(0).unsqueeze(0)
-    print(spect.shape)
-    # torch.save(spect, f'{save_path}/{video_id}-{i:03d}-{spect.shape[1]}.pt')
-    length = torch.IntTensor([spect.size(3)]).int().to("cuda")
-    out, out_size, features = model(spect, length)
-    print(tspect)
+    spect = spect.transpose()
+    input_size = torch.IntTensor([100]).int().to('cuda') # 1 sec input (100 data points)
+
+    # list_outputs = []      
+    # every 100 data points on the spectrogram is 1 sec of audio
+    for sec in range(len(spect) // 100):
+        one_sec_spect = spect[sec * 100 : min((sec+1) * 100, len(spect))]
+        one_sec_spect = torch.FloatTensor(one_sec_spect.transpose()).unsqueeze(0).unsqueeze(0).to('cuda')
+        out, out_size, features = model(one_sec_spect, input_size)
+        # list_outputs.append((out, out_size))
+        torch.save(features, f'{save_path}/{video_id[:-4]}-{sec:03d}-{features.shape[0]}.pt')
+    
+    # verify_output(list_outputs, model)
+
     return out, out_size, features
 
-def main():
-    args = parser.parse_args()
-    model = DeepSpeech.load_model(args.pretrained)
-    model.to(args.device)
-
-    window_stride = .01
-    window_size = .02
-    sample_rate = 16000
-    window = 'hamming' #SpectConfig.window.value
-
+def verify_output(list_outputs, model):
     decoder = 'greedy'
     lm_path = None          # Path to an (optional) kenlm language model for use with beam search
     alpha = 0.8             # Language model weight
@@ -69,6 +68,21 @@ def main():
                             cutoff_prob=cutoff_prob,
                             beam_width=beam_width,
                             lm_workers=lm_workers)
+    
+    for i, (out, out_size) in enumerate(list_outputs):
+        decoded_output = decoder.decode(out, out_size)
+        print(decoded_output[0])
+    
+def main():
+    start = time.time()
+    args = parser.parse_args()
+    model = DeepSpeech.load_model(args.pretrained)
+    model.to(args.device)
+
+    window_stride = .01
+    window_size = .02
+    sample_rate = 16000
+    window = 'hamming' #SpectConfig.window.value
 
     subfolders = ['real', 'fake']
     for subfolder in subfolders:
@@ -76,11 +90,9 @@ def main():
         for video_id in file_list:
             input_path = os.path.join(args.input, subfolder, video_id)
             output_path = create_directory(os.path.join(args.output, subfolder, video_id))
-            out, out_size, features = get_deepspeech2_features(model, input_path, output_path, video_id)
+            save_deepspeech2_features(model, input_path, output_path, video_id)
 
-            print(features.shape)
-            decoded_output = decoder.decode(out, out_size)
-            print(decoded_output)
+    print(time.time()-start)
 
 if __name__ == '__main__':
     main()

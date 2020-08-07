@@ -9,6 +9,10 @@ def load_audio(video_path, fps=16000):
         video_path: realtive or absolute path to a video file
     '''
     videoclip = VideoFileClip(video_path)
+    # TODO: if audio does not exist, add an empty AudioFileClip object and set
+    # video to that empty audio
+    # if videoclip.audio is None:
+    #     videoclip.set_audio
     audio = videoclip.audio.set_fps(fps).to_soundarray()
     if len(audio.shape) > 1:
         if audio.shape[1] == 1:
