@@ -6,7 +6,7 @@ import numpy as np
 import sys
 from tqdm import tqdm
 
-BATCH_SIZE = 24
+SEQ_SIZE = 30
 
 
 def feats_from_dir(path, outpath, model):
@@ -32,7 +32,7 @@ def feats_from_dir(path, outpath, model):
             currentseq = []
             continue
 
-        if len(currentseq) == 24:
+        if len(currentseq) == 30:
             currentseq = np.stack(currentseq)
             imgseqs.append(currentseq)
             currentseq = []

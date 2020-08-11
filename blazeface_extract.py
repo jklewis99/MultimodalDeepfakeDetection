@@ -41,6 +41,7 @@ def get_file_id(path):
     fileid = '.'.join(filename.split('.')[:-1])
     return fileid
 
+
 def get_iou(last_face, current_face):
     '''
     a method to calculate the intersection over union of the current face of interest and the
@@ -61,15 +62,18 @@ def get_iou(last_face, current_face):
     inter_area = max(0, x2 - x1) * max(0, y2 - y1)
 
     # area of the last face
-    last_face_area = max(0, last_face[2] - last_face[0]) * max(0, last_face[3] - last_face[1])
+    last_face_area = max(
+        0, last_face[2] - last_face[0]) * max(0, last_face[3] - last_face[1])
 
     # area of the current face
-    current_face_area = max(0, current_face[2] - current_face[0]) * max(0, current_face[3] - current_face[1])
+    current_face_area = max(
+        0, current_face[2] - current_face[0]) * max(0, current_face[3] - current_face[1])
 
     # intersection over union
     iou = inter_area / (last_face_area + current_face_area - inter_area)
 
     return iou
+
 
 def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=False):
     """
@@ -81,6 +85,8 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
     # Detection
     smframesnp = np.stack(smframes)
     detections = net.predict_on_batch(smframesnp)
+
+    # TODO: Fill the detection gap
 
     output = []
     last_face = None
@@ -116,17 +122,19 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
             # mark landmarks:
             if mark_landmarks:
                 for k in range(6):
-                    kp_x = math.floor(detection[face_num, 4 + k*2] * size + xshift)
+                    kp_x = math.floor(
+                        detection[face_num, 4 + k*2] * size + xshift)
                     kp_y = math.floor(
                         detection[face_num, 4 + k*2 + 1] * size + yshift)
                     frame = cv2.circle(frame, (kp_x, kp_y), 2, (255, 0, 0), 2)
-        
+
         # update the last_face rectangle
-        if iou > 0: # if the iou is zero, then we have found a different face
-            ### EDGE CASE: blazeface does not find the same face after enough frames 
-            ###            and the subject moves enough that no face will ever be saved
+        if iou > 0:  # if the iou is zero, then we have found a different face
+            # EDGE CASE: blazeface does not find the same face after enough frames
+            # and the subject moves enough that no face will ever be saved
             last_face = face_of_interest
-            face = frame[face_of_interest[1] : face_of_interest[3], face_of_interest[0] : face_of_interest[2]]
+            face = frame[face_of_interest[1]: face_of_interest[3],
+                         face_of_interest[0]: face_of_interest[2]]
             face = cv2.resize(face, (299, 299))
 
             if save_path is not None:
@@ -138,6 +146,7 @@ def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=Fals
             print('Found a different or no faces. Skipping...')
 
     return output
+
 
 if __name__ == '__main__':
     main()

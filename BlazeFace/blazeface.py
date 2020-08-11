@@ -416,7 +416,7 @@ def init_model():
     net.load_anchors("BlazeFace/params/anchors.npy")
 
     # Optionally change the thresholds:
-    net.min_score_thresh = 0.75
+    net.min_score_thresh = 0.5
     net.min_suppression_threshold = 0.3
 
     return net

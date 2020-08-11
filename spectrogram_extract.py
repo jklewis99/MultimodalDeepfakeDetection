@@ -84,8 +84,8 @@ def parse_audio(audio_path, normalize=True):
     if normalize:
         mean = spect.mean()
         std = spect.std()
-        spect.add_(-mean)
-        spect.div_(std)
+        spect = spect - mean
+        spect = spect / std
 
     return spect
 
@@ -156,7 +156,7 @@ def feats_from_vid(vid_path, face_path, outpath):
                 currentseq = []
             continue
 
-        if len(currentseq) == 24:
+        if len(currentseq) == 30:
             currentseq = np.stack(currentseq)
             currentseq = torch.FloatTensor(currentseq)
             outfile = os.path.join(outpath, vname)

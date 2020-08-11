@@ -14,18 +14,22 @@ parser.add_argument('input', help="Folder containing fake and real folders, insi
 parser.add_argument('output', help="Saves LipNet tensor to this file_path. It will create a fake \
                                     and real folder, in which the video label folder will be \
                                     created containing the tensors")
-parser.add_argument('-seq-size', default=24, help="Maximum size of sequence (default 24)")
-parser.add_argument('-device', default='cuda', help="device for model (default cuda)")
-parser.add_argument('-pretrained', 
-                    default='LipNet/pretrain/LipNet_unseen_loss_0.44562849402427673_wer_0.1332580699113564_cer_0.06796452465503355.pt',
+parser.add_argument('-seq-size', default=30,
+                    help="Maximum size of sequence (default 30)")
+parser.add_argument('-device', default='cuda',
+                    help="device for model (default cuda)")
+parser.add_argument('-pretrained',
+                    default='LipNet/pretrain/LipNet_unseen_loss_0.44562849403027673_wer_0.1332580699113564_cer_0.06796453065503355.pt',
                     help='path to pretrained weights for LipNet model')
+
 
 def normalize_mouth_sequence(video):
     video = np.stack(video, axis=0).astype(np.float32)
     video = torch.FloatTensor(video.transpose(3, 0, 1, 2)) / 255.0
     return video
 
-def get_lipnet_features(model, input_path, save_path, video_id, seq_size=24, img_type='jpg', device='cuda'):
+
+def get_lipnet_features(model, input_path, save_path, video_id, seq_size=30, img_type='jpg', device='cuda'):
     '''
     export the features from the LipNet model. Prepares sequences of seq_size \
         number of images, converts them to tensors, and then feeds them \
@@ -38,10 +42,10 @@ def get_lipnet_features(model, input_path, save_path, video_id, seq_size=24, img
     save_path: path in which LipNet features will be saved
     video_id: video name
     -------------------------------------------------------------------------
-    
+
     KeywordArgs
     -------------------------------------------------------------------------
-    seq_size: number of images per sequence (default 24)
+    seq_size: number of images per sequence (default 30)
     img_type: file type of saved images (default 'jpg')
     device: 'cuda' or 'cpu'
     ------------------------------------------------------------------------- 
@@ -58,7 +62,7 @@ def get_lipnet_features(model, input_path, save_path, video_id, seq_size=24, img
         im = cv2.imread(file_path)
         if im is None:
             if len(mouth_batch) != 0:
-                batch_sequences.append(np.stack(mouth_batch))    
+                batch_sequences.append(np.stack(mouth_batch))
             mouth_batch = []
             continue
 
@@ -78,39 +82,48 @@ def get_lipnet_features(model, input_path, save_path, video_id, seq_size=24, img
         seq = normalize_mouth_sequence(seq)
         if seq.shape[1] == seq_size:
             translation, features = model(seq[None, ...].to(device))
-            torch.save(features, f'{save_path}/{video_id}-{i:03d}-{seq.shape[1]}.pt')
+            torch.save(
+                features, f'{save_path}/{video_id}-{i:03d}-{seq.shape[1]}.pt')
             feature_sequences.append(features)
             translationf.append(translation)
-    
+
     return feature_sequences, translationf
+
 
 def main():
     args = parser.parse_args()
     landmark = 'mouth'
     subfolders = ['real', 'fake']
-    
+
     model = LipNet()
     model = model.to(args.device)
     net = nn.DataParallel(model).to(args.device)
 
-    pretrained_dict = torch.load(args.pretrained, map_location=torch.device(args.device))
+    pretrained_dict = torch.load(
+        args.pretrained, map_location=torch.device(args.device))
     model_dict = model.state_dict()
-    pretrained_dict = {k: v for k, v in pretrained_dict.items() 
-                        if k in model_dict.keys() and 
-                        v.size() == model_dict[k].size()}
-    missed_params = [k for k, v in model_dict.items() if not k in pretrained_dict.keys()]
+    pretrained_dict = {k: v for k, v in pretrained_dict.items()
+                       if k in model_dict.keys() and
+                       v.size() == model_dict[k].size()}
+    missed_params = [k for k, v in model_dict.items(
+    ) if not k in pretrained_dict.keys()]
     # print('loaded params/tot params:{}/{}'.format(len(pretrained_dict), len(model_dict)))
     # print('miss matched params:{}'.format(missed_params))
     model_dict.update(pretrained_dict)
     model.load_state_dict(model_dict)
 
     for subfolder in subfolders:
-        file_list = [video_label for video_label in os.listdir(os.path.join(args.input, subfolder))]
+        file_list = [video_label for video_label in os.listdir(
+            os.path.join(args.input, subfolder))]
         for video_id in file_list:
-            input_path = os.path.join(args.input, subfolder, video_id, landmark)
-            output_path = create_directory(os.path.join(args.output, subfolder, video_id))
+            input_path = os.path.join(
+                args.input, subfolder, video_id, landmark)
+            output_path = create_directory(
+                os.path.join(args.output, subfolder, video_id))
             # the assumption is that this input path contains a mouth folder
-            get_lipnet_features(model, input_path, output_path, video_id, seq_size=args.seq_size, device=args.device)
+            get_lipnet_features(model, input_path, output_path,
+                                video_id, seq_size=args.seq_size, device=args.device)
+
 
 if __name__ == '__main__':
     main()
