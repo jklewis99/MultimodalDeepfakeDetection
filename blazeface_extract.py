@@ -74,6 +74,42 @@ def get_iou(last_face, current_face):
 
     return iou
 
+def interpolate(face_before, face_after, threshold=30):
+    '''
+    predicts where the faces would be based on the faces found that border the gap
+
+    parameters:
+        face_before: tuple object, (points, frame_number), where points is a list \
+            of length 4
+        face_after: tuple object, (points, frame_number), where points is a list \
+            of length 4
+    '''
+    missing_frames = face_after[1] - face_before[1]
+    if missing_frames > threshold:
+        print('Too many missing frames to interpolate')
+        return
+    
+    xmin_range = face_after[0][0] - face_before[0][0]
+    ymin_range = face_after[0][2] - face_before[0][2]
+    xmax_range = face_after[0][1] - face_before[0][1]
+    ymax_range = face_after[0][3] - face_before[0][3]
+
+    xmin_step = xmin_range / missing_frames
+    ymin_step = ymin_range / missing_frames
+    xmax_step = xmax_range / missing_frames
+    ymax_step = ymax_range / missing_frames
+
+    interpolated_faces = []
+
+    for i in range(missing_frames):
+        face = ([(i+1)*xmin_step + face_before[0][0],
+                (i+1)*xmax_step + face_before[0][1],
+                (i+1)*ymin_step + face_before[0][2],
+                (i+1)*ymax_step + face_before[0][3]],
+                face_before[1] + i + 1)
+        interpolated_faces.append(face)
+
+    return interpolated_faces
 
 def extract_faces(filepath, net, padding=10, save_path=None, mark_landmarks=False):
     """
