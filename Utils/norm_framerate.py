@@ -23,10 +23,10 @@ def main():
             args_list.append((input_path, os.path.join(output_path, video_id)))
 
     args_list = split_list(args_list, 20)
-    for arg_tuple in args_list:
+    for arg_tuples in args_list:
         with concurrent.futures.ProcessPoolExecutor() as executor:
             results = [executor.submit(set_fps, input_path, output_path, args.fps)
-                       for input_path, output_path in args_list]
+                       for input_path, output_path in arg_tuples]
 
             for f in concurrent.futures.as_completed(results):
                 print(f.result())
