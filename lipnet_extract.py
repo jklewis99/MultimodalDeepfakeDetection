@@ -19,7 +19,7 @@ parser.add_argument('-seq-size', default=30,
 parser.add_argument('-device', default='cuda',
                     help="device for model (default cuda)")
 parser.add_argument('-pretrained',
-                    default='LipNet/pretrain/LipNet_unseen_loss_0.44562849403027673_wer_0.1332580699113564_cer_0.06796453065503355.pt',
+                    default='LipNet/pretrain/LipNet_unseen_loss_0.44562849402427673_wer_0.1332580699113564_cer_0.06796452465503355.pt',
                     help='path to pretrained weights for LipNet model')
 
 
