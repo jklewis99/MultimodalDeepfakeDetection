@@ -137,7 +137,7 @@ def feats_from_vid(vid_path, face_path, outpath):
 
     frameidx = [int(p[-8:-4]) for p in os.listdir(face_path)]
     if len(frameidx) == 0:
-        return
+        return f'No audio for: {vname}'
 
     currentseq = []
     counter = 0
