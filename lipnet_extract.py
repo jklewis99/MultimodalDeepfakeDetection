@@ -51,7 +51,9 @@ def get_lipnet_features(model, input_path, save_path, video_id, seq_size=30, img
     ------------------------------------------------------------------------- 
     '''
     frame_ids = get_frame_ids(input_path, img_type=img_type)
-
+    if len(frame_ids) == 0 :
+        return
+        
     mouth_batch = []
     batch_sequences = []
 
