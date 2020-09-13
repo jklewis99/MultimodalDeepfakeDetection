@@ -153,7 +153,7 @@ def process_faces(fa, input_path, video_id, save_path):
         if preds is not None:
             # get the list of landmarks
             # shape = preds[0] # this command works on my computer, but not lewis
-            # this command works on Lewis, but not my computer
+            # shape = preds[0][0] # this command works on Lewis, but not my computer
             # print(preds)
 
             shape = np.array(preds[0])
