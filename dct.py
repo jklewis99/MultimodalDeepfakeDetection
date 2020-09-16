@@ -33,6 +33,9 @@ def landmark_dct_seq(input_path, video_id, landmark, save_path, seq_size):
         return
     frame_ids = get_frame_ids(path_to_landmark)
 
+    if len(frame_ids) == 0:
+        return
+
     dct_seq = []
     batch_sequences = []
 
