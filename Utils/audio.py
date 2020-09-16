@@ -13,7 +13,11 @@ def load_audio(video_path, fps=16000):
     # video to that empty audio
     # if videoclip.audio is None:
     #     videoclip.set_audio
+    if videoclip.audio is None:
+        return np.zeros(int(videoclip.duration * fps))
+        
     audio = videoclip.audio.set_fps(fps).to_soundarray()
+
     if len(audio.shape) > 1:
         if audio.shape[1] == 1:
             audio = audio.squeeze()
