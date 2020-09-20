@@ -260,7 +260,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
             loss = loss_function(out, labels)
             # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), 5)
+            # nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
 
             running_acc += torch.mean((out.argmax(dim=1)
