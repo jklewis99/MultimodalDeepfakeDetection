@@ -239,6 +239,9 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
     running_acc = 0.0
 
     for epoch in range(epochs):
+        hidden_ds, hidden_ln = model.init_hidden(batch_size=batch_size)
+        model.train()
+
         for x_ds, x_ln, labels in trainloader:
             optimizer.zero_grad()
 
@@ -251,8 +254,6 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 
             labels = labels.to(device)
 
-            hidden_ds, hidden_ln = model.init_hidden(batch_size=batch_size)
-
             # Step 2. Run our forward pass.
             out, hidden_ds, hidden_ln = model(x_ds, x_ln, hidden_ds, hidden_ln)
             out = out.add(epsilon)
@@ -262,6 +263,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
             loss = loss_function(out, labels)
             # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
 
             running_acc += torch.mean((out.argmax(dim=1)
