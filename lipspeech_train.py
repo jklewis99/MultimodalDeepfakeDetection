@@ -28,10 +28,11 @@ ln_path = '/home/itdfh/data/dfdc-subset/train-6-lipnet'
 def tensor_file_lists(ds_path, ln_path, max_files=None, perc=.9):
 
     ds_files_train, ln_files_train = [], []
-    ds_files_val, ln_files_val = [], []
+    ds_files_val,   ln_files_val = [], []
 
     for label in ['real', 'fake']:
         train_files = []
+
         val_files = []
 
         all_files = os.listdir(os.path.join(ds_path, label))
@@ -46,15 +47,15 @@ def tensor_file_lists(ds_path, ln_path, max_files=None, perc=.9):
                 val_files.extend([os.path.join(base_dir, p)
                                   for p in os.listdir(full_base_dir)])
 
-        ds_files_train.extend([(os.path.join(ds_path, p), labelmap[label])
+        ds_files_train.extend([(os.path.join(ds_path, p[:-5]+'50.pt'), labelmap[label])
                                for p in train_files if p[-5:] == '50.pt'])
-        ln_files_train.extend([(os.path.join(ln_path, p), labelmap[label])
-                               for p in train_files if p[-5:] == '30.pt'])
+        ln_files_train.extend([(os.path.join(ln_path, p[:-5]+'30.pt'), labelmap[label])
+                               for p in train_files if p[-5:] == '50.pt'])
 
-        ds_files_val.extend([(os.path.join(ds_path, p), labelmap[label])
+        ds_files_val.extend([(os.path.join(ds_path, p[:-5]+'50.pt'), labelmap[label])
                              for p in val_files if p[-5:] == '50.pt'])
-        ln_files_val.extend([(os.path.join(ln_path, p), labelmap[label])
-                             for p in val_files if p[-5:] == '30.pt'])
+        ln_files_val.extend([(os.path.join(ln_path, p[:-5]+'30.pt'), labelmap[label])
+                             for p in val_files if p[-5:] == '50.pt'])
 
     return ds_files_train, ln_files_train, ds_files_val, ln_files_val
 
@@ -63,8 +64,22 @@ def tensor_file_lists(ds_path, ln_path, max_files=None, perc=.9):
 ds_files_train, ln_files_train, ds_files_val, ln_files_val = tensor_file_lists(
     ds_path, ln_path)
 
+clean_ln_files_train = [ln_files_train[i] for i, (f, label) in enumerate(
+    ln_files_train) if os.path.exists(f)]
+clean_ds_files_train = [ds_files_train[i] for i, (f, label) in enumerate(
+    ln_files_train) if os.path.exists(f)]
+clean_ln_files_val = [ln_files_val[i]
+                      for i, (f, label) in enumerate(ln_files_val) if os.path.exists(f)]
+clean_ds_files_val = [ds_files_val[i]
+                      for i, (f, label) in enumerate(ln_files_val) if os.path.exists(f)]
+ln_files_train = clean_ln_files_train
+ds_files_train = clean_ds_files_train
+ln_files_val = clean_ln_files_val
+ds_files_val = clean_ds_files_val
 
 # %%
+
+
 class LipSpeechDataset(Dataset):
     '''
     LipSpeech data set for concatenating lntionNet Features and dstrogram features
@@ -88,8 +103,8 @@ class LipSpeechDataset(Dataset):
         dsf, label = self.ds_files[idx]
         lnf, label = self.ln_files[idx]
 
-        ds_feats = torch.load(dsf)
-        ln_feats = torch.load(lnf)
+        ds_feats = torch.load(dsf).transpose(0, 1)
+        ln_feats = torch.load(lnf).transpose(0, 1)
 
         label = torch.tensor(label).long()
 
@@ -131,12 +146,47 @@ class LSTMFC(nn.Module):
         return hidden
 
 
+class LSTMFC(nn.Module):
+    def __init__(self, input_dim, out_dim, hidden_dim=1024, num_layers=2, device='cuda'):
+        super(LSTMFC, self).__init__()
+
+        self.device = device
+
+        self.num_layers = num_layers
+        self.hidden_dim = hidden_dim
+
+        self.lstm = nn.LSTM(input_dim, hidden_dim,
+                            batch_first=True, num_layers=num_layers)
+        # fully connected
+        self.fc = nn.Linear(hidden_dim, out_dim)
+        self.act = nn.ReLU()
+
+    def forward(self, x, hidden):
+        y, hidden = self.lstm(x, hidden)
+        print(y.shape)
+        y = y[:, -1, :]
+        y = self.fc(y)
+        y = self.act(y)
+
+        return y, hidden
+
+    def init_hidden(self, batch_size):
+        weight = next(self.parameters()).data
+        hidden = (weight.new(self.num_layers, batch_size, self.hidden_dim).zero_().to(self.device),
+                  weight.new(self.num_layers, batch_size, self.hidden_dim).zero_().to(self.device))
+        return hidden
+
+
 class LipSpeechNet(nn.Module):
     def __init__(self, out_dim=2, hidden_dim=1024, device='cuda'):
         super(LipSpeechNet, self).__init__()
 
-        self.lstmfc_ds = LSTMFC(1024, hidden_dim, hidden_dim)
-        self.lstmfc_ln = LSTMFC(512, hidden_dim, hidden_dim)
+        self.device = device
+
+        self.lstmfc_ds = LSTMFC(
+            1024, hidden_dim, hidden_dim, device=self.device)
+        self.lstmfc_ln = LSTMFC(
+            512, hidden_dim, hidden_dim, device=self.device)
 
         # fully connected
         self.fc1 = nn.Linear(hidden_dim * 2, hidden_dim)
@@ -162,7 +212,7 @@ class LipSpeechNet(nn.Module):
         return y, hidden_ds, hidden_ln
 
 
-model = LipSpeechNet()
+model = LipSpeechNet().cuda()
 
 
 def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, batch_size=50, device='cuda'):
@@ -177,8 +227,6 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
         valloader = DataLoader(valset, shuffle=True,
                                batch_size=batch_size, drop_last=True)
 
-    hidden_ds, hidden_ln = model.init_hidden(batch_size)
-
     print_every = 5
     i = 0
     losses = []
@@ -189,19 +237,24 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 
     running_loss = 0.0
     running_acc = 0.0
-    # again, normally you would NOT do 100 epochs, it is toy data
+
     for epoch in range(epochs):
-        for inp, labels in trainloader:  # renamed sequence to inp because inp is a batch of sequences
+        for x_ds, x_ln, labels in trainloader:
             optimizer.zero_grad()
+
             # Step 1. Remember that Pytorch accumulates gradients.
             # We need to clear them out before each instance
             model.zero_grad()
 
-            inp = inp.float().to(device)
+            x_ds = x_ds[:, 0].float().to(device)
+            x_ln = x_ln[:, 0].float().to(device)
+
             labels = labels.to(device)
 
+            hidden_ds, hidden_ln = model.init_hidden(batch_size=batch_size)
+
             # Step 2. Run our forward pass.
-            out, hidden_ds, hidden_ln = model(inp, hidden_ds, hidden_ln)
+            out, hidden_ds, hidden_ln = model(x_ds, x_ln, hidden_ds, hidden_ln)
             out = out.add(epsilon)
 
             # Step 3. Compute the loss, gradients, and update the parameters by
@@ -234,12 +287,13 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
         if valset is not None:
             with torch.no_grad():
                 val_accs, val_losses = [], []
-                for inp, labels in valloader:
-                    inp = inp.float().to(device)
+                for x_ds, x_ln, labels in valloader:
+                    x_ds = x_ds[:, 0].float().to(device)
+                    x_ln = x_ln[:, 0].float().to(device)
                     labels = labels.to(device)
 
                     out, hidden_ds, hidden_ln = model(
-                        inp, hidden_ds, hidden_ln)
+                        x_ds, x_ln, hidden_ds, hidden_ln)
                     loss = loss_function(out, labels)
 
                     val_accs.append(torch.mean((out.argmax(dim=1)
@@ -260,5 +314,5 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 
 loss_function = nn.NLLLoss().cuda()
 optimizer = optim.Adam(model.parameters(), lr=1e-5)
-losses, accs, vlosses, vaccs = train(model, trainset, loss_function,
-                                     optimizer, epochs=1000, batch_size=500, valset=valset)
+train(model, trainset, loss_function, optimizer,
+      epochs=1000, batch_size=10, valset=valset)
