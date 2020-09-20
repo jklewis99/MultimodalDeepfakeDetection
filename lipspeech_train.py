@@ -163,7 +163,6 @@ class LSTMFC(nn.Module):
 
     def forward(self, x, hidden):
         y, hidden = self.lstm(x, hidden)
-        print(y.shape)
         y = y[:, -1, :]
         y = self.fc(y)
         y = self.act(y)
@@ -240,8 +239,6 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 
     for epoch in range(epochs):
         hidden_ds, hidden_ln = model.init_hidden(batch_size=batch_size)
-        model.train()
-
         for x_ds, x_ln, labels in trainloader:
             optimizer.zero_grad()
 
@@ -317,4 +314,4 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 loss_function = nn.NLLLoss().cuda()
 optimizer = optim.Adam(model.parameters(), lr=1e-5)
 train(model, trainset, loss_function, optimizer,
-      epochs=1000, batch_size=10, valset=valset)
+      epochs=1000, batch_size=100, valset=valset)
