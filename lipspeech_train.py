@@ -256,12 +256,12 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 
             # Step 2. Run our forward pass.
             out, hidden_ds, hidden_ln = model(x_ds, x_ln, hidden_ds, hidden_ln)
-            out = out.add(epsilon)
+            # out = out.add(epsilon)
 
             # Step 3. Compute the loss, gradients, and update the parameters by
             # calling optimizer.step()
             loss = loss_function(out, labels)
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             loss.backward()
             optimizer.step()
 
