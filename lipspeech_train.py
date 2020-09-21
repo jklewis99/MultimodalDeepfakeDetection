@@ -163,6 +163,7 @@ class LSTMFC(nn.Module):
 
     def forward(self, x, hidden):
         y, hidden = self.lstm(x, hidden)
+        print(y.shape)
         y = y[:, -1, :]
         y = self.fc(y)
         y = self.act(y)
@@ -240,8 +241,8 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
     for epoch in range(epochs):
         hidden_ds, hidden_ln = model.init_hidden(batch_size=batch_size)
         for x_ds, x_ln, labels in trainloader:
-            optimizer.zero_grad()
-
+            hidden_ds = tuple([e.data for e in hidden_ds])
+            hidden_ln = tuple([e.data for e in hidden_ln])
             # Step 1. Remember that Pytorch accumulates gradients.
             # We need to clear them out before each instance
             model.zero_grad()
@@ -250,6 +251,8 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
             x_ln = x_ln[:, 0].float().to(device)
 
             labels = labels.to(device)
+
+            optimizer.zero_grad()
 
             # Step 2. Run our forward pass.
             out, hidden_ds, hidden_ln = model(x_ds, x_ln, hidden_ds, hidden_ln)
@@ -260,7 +263,6 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
             loss = loss_function(out, labels)
             # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             loss.backward()
-            # nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
 
             running_acc += torch.mean((out.argmax(dim=1)
@@ -314,4 +316,4 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 loss_function = nn.NLLLoss().cuda()
 optimizer = optim.Adam(model.parameters(), lr=1e-5)
 train(model, trainset, loss_function, optimizer,
-      epochs=1000, batch_size=100, valset=valset)
+      epochs=1000, batch_size=10, valset=valset)
