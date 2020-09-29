@@ -17,7 +17,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter('runs/lipspeech')
+writer = SummaryWriter('runs/fouriernet')
 
 # %%
 labelmap = {'real': 0, 'fake': 1}
@@ -238,40 +238,50 @@ model
 # In[17]:
 
 
-def train(model, trainset, loss_function, optimizer, epochs=1000, batch_size=50, device='cuda'):
+def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, batch_size=50, device='cuda'):
+    global writer
+    # epsilon = 1e-6
+
     model = model.to(device)
     trainloader = DataLoader(trainset, shuffle=True,
                              batch_size=batch_size, drop_last=True)
+
+    if valset is not None:
+        valloader = DataLoader(valset, shuffle=True,
+                               batch_size=batch_size, drop_last=True)
 
     hidden = model.init_hidden(batch_size)
     for h in hidden:
         h = h.to(device)
 
-    print_every = 12
+    print_every = 100
     i = 0
     losses = []
     accs = []
+
+    vaccs = []
+    vlosses = []
+
     running_loss = 0.0
     running_acc = 0.0
     # again, normally you would NOT do 100 epochs, it is toy data
     for epoch in range(epochs):
         for inp, labels in trainloader:  # renamed sequence to inp because inp is a batch of sequences
+            optimizer.zero_grad()
             # Step 1. Remember that Pytorch accumulates gradients.
             # We need to clear them out before each instance
-            print(inp.shape, labels.shape)
             model.zero_grad()
 
             inp = inp.float().to(device)
             labels = labels.to(device)
 
-            print(inp.device, labels.device,
-                  hidden[0].device, hidden[0].device)
             # Step 2. Run our forward pass.
             tag_scores, h = model(inp, hidden)
-
+            tag_scores = tag_scores.add(epsilon)
             # Step 3. Compute the loss, gradients, and update the parameters by
             # calling optimizer.step()
             loss = loss_function(tag_scores, labels)
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             loss.backward()
             optimizer.step()
 
@@ -284,13 +294,41 @@ def train(model, trainset, loss_function, optimizer, epochs=1000, batch_size=50,
                 print('[%d, %5d] loss: %.3f - acc: %.3f' %
                       (epoch + 1, i + 1, running_loss / print_every, running_acc * 100 / print_every))
 
+                writer.add_scalar('train/loss', running_loss / print_every, i)
+                writer.add_scalar('train/acc', running_acc *
+                                  100 / print_every, i)
+
                 losses.append(running_loss / print_every)
                 accs.append(running_acc * 100 / print_every)
 
                 running_loss = 0.0
                 running_acc = 0.0
             i += 1
-    return losses, accs
+
+        if valset is not None:
+            with torch.no_grad():
+                val_accs, val_losses = [], []
+                for inp, labels in valloader:
+                    inp = inp.float().to(device)
+                    labels = labels.to(device)
+
+                    tag_scores, h = model(inp, hidden)
+                    loss = loss_function(tag_scores, labels)
+
+                    val_accs.append(torch.mean((tag_scores.argmax(dim=1)
+                                                == labels).float()).item())
+                    val_losses.append(loss)
+
+                val_accs = torch.mean(torch.tensor(val_accs))
+                val_losses = torch.mean(torch.tensor(val_losses))
+
+                writer.add_scalar('val/loss', val_accs * 100, epoch)
+                writer.add_scalar('val/acc', val_losses, epoch)
+
+                vaccs.append(val_accs)
+                vlosses.append(val_losses)
+
+    return losses, accs, vlosses, vaccs
 
 
 # In[18]:
@@ -299,7 +337,7 @@ model = model.cuda()
 loss_function = nn.NLLLoss().cuda()
 optimizer = optim.SGD(model.parameters(), lr=0.1)
 losses, accs = train(model, trainset, loss_function,
-                     optimizer, epochs=1000, batch_size=100)
+                     optimizer, epochs=1000, batch_size=500)
 
 
 # In[ ]:
