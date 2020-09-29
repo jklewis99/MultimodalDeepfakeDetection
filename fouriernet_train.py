@@ -81,12 +81,6 @@ dct_files_train, spc_files_train, dct_files_val, spc_files_val = tensor_file_lis
 spc_files_train[0], dct_files_train[0]
 
 
-# In[4]:
-
-
-ls / home/itdfh/data/dfdc-subset/train-6-spectrograms/real/uoptulivph/
-
-
 # ### Checking match
 
 # In[5]:
