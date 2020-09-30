@@ -277,7 +277,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 
             # Step 2. Run our forward pass.
             tag_scores, h = model(inp, hidden)
-            tag_scores = tag_scores.add(epsilon)
+            # tag_scores = tag_scores.add(epsilon)
             # Step 3. Compute the loss, gradients, and update the parameters by
             # calling optimizer.step()
             loss = loss_function(tag_scores, labels)
