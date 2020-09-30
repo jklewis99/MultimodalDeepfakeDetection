@@ -20,11 +20,12 @@ labelmap = {'real': 0, 'fake': 1}
 
 
 # %%
-spec_path = '/home/itdfh/data/dfdc-subset/train_spectrograms_part-5'
-xcep_path = '/home/itdfh/data/dfdc-subset/train_xception_part-5'
-
+spec_path = '/home/itdfh/data/dfdc-subset/train-6-spectrograms'
+xcep_path = '/home/itdfh/data/dfdc-subset/train-6-xception'
 
 # %%
+
+
 def tensor_file_lists(spec_path, xcep_path, max_files=None, perc=.9):
     spec_files_train, xcep_files_train = [], []
     spec_files_val, xcep_files_val = [], []
