@@ -226,7 +226,7 @@ class FourierNet(nn.Module):
 # In[15]:
 
 
-model = FourierNet(1465)
+model = FourierNet(765)
 
 
 # In[16]:
