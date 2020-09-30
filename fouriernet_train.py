@@ -143,8 +143,8 @@ class FourierDataset(Dataset):
 
 
 # %%
-trainset = FourierDataset(dct_files_train, spc_files_train, max_spc_size=0)
-valset = FourierDataset(dct_files_val, spc_files_val, max_spc_size=0)
+trainset = FourierDataset(dct_files_train, spc_files_train)
+valset = FourierDataset(dct_files_val, spc_files_val)
 
 
 # In[12]:
@@ -187,7 +187,7 @@ class FourierNet(nn.Module):
 # In[15]:
 
 
-model = FourierNet(765)
+model = FourierNet(1465)
 
 
 # In[16]:
@@ -298,7 +298,7 @@ model = model.cuda()
 loss_function = nn.NLLLoss().cuda()
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 losses, accs = train(model, trainset, loss_function,
-                     optimizer, epochs=1000, batch_size=500)
+                     optimizer, epochs=1000, batch_size=200)
 
 
 # In[ ]:
