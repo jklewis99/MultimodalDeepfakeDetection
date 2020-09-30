@@ -83,27 +83,6 @@ spc_files_train[0], dct_files_train[0]
 
 # ### Checking match
 
-# In[5]:
-
-
-a = {
-    'dct_exist': 0,
-    'dct_not_exist': 0,
-    'spc_exist': 0,
-    'spc_not_exist': 0
-}
-for (dct_f, _), (spc_f, _) in tqdm(zip(dct_files_train, spc_files_train), total=len(spc_files_train)):
-    if not os.path.exists(dct_f):
-        a['dct_not_exist'] += 1
-    else:
-        a['dct_exist'] += 1
-    if not os.path.exists(spc_f):
-        a['spc_not_exist'] += 1
-    else:
-        a['spc_exist'] += 1
-
-a
-
 
 # ### Keeping matches
 
@@ -117,27 +96,9 @@ clean_dct_files_train = [dct_files_train[i] for i, (f, label) in enumerate(
 spc_files_train = clean_spc_files_train
 dct_files_train = clean_dct_files_train
 
-
-# In[7]:
-
-
-a = {
-    'dct_exist': 0,
-    'dct_not_exist': 0,
-    'spc_exist': 0,
-    'spc_not_exist': 0
-}
-for (dct_f, _), (spc_f, _) in tqdm(zip(dct_files_train, spc_files_train), total=len(spc_files_train)):
-    if not os.path.exists(dct_f):
-        a['dct_not_exist'] += 1
-    else:
-        a['dct_exist'] += 1
-    if not os.path.exists(spc_f):
-        a['spc_not_exist'] += 1
-    else:
-        a['spc_exist'] += 1
-
-a
+spc_files_train = [
+    f for f in spc_files_train if not torch.isnan(torch.load(f[0]).sum())]
+dct_files_train = [f for f in dct_files_train if np.isnan(np.load(f[0]).sum())]
 
 
 # ### `FourierDataset`
