@@ -17,7 +17,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter('runs/fouriernet-val-e-5')
+writer = SummaryWriter('runs/fouriernet-val-e-5-lstm-1')
 
 # %%
 labelmap = {'real': 0, 'fake': 1}
@@ -209,13 +209,7 @@ class FourierNet(nn.Module):
 # In[15]:
 
 
-model = FourierNet(1465)
-
-
-# In[16]:
-
-
-model
+model = FourierNet(1465, num_layers=1)
 
 
 # In[17]:
