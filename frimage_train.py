@@ -166,7 +166,7 @@ class FrimageNet(nn.Module):
         return hidden
 
 
-model = FrimageNet(2048)
+model = FrimageNet(2748)
 
 
 def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, batch_size=50, device='cuda'):
