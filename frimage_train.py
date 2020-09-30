@@ -13,7 +13,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter('runs/frimage')
+writer = SummaryWriter('runs/frimage-2')
 
 # %%
 labelmap = {'real': 0, 'fake': 1}
@@ -130,8 +130,8 @@ class FrimagenetDataset(Dataset):
 
 # %%
 trainset = FrimagenetDataset(
-    spec_files_train, xcep_files_train, max_spec_size=0)
-valset = FrimagenetDataset(spec_files_val, xcep_files_val, max_spec_size=0)
+    spec_files_train, xcep_files_train)
+valset = FrimagenetDataset(spec_files_val, xcep_files_val)
 
 
 class FrimageNet(nn.Module):
