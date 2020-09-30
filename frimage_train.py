@@ -98,7 +98,7 @@ class FrimagenetDataset(Dataset):
     FrimageNet data set for concatenating XceptionNet Features and Spectrogram features
     '''
 
-    def __init__(self, spec_files, xcep_files, seq_size=24, max_spec_size=700):
+    def __init__(self, spec_files, xcep_files, seq_size=30, max_spec_size=700):
         """
         Args:
             spectrogram_folder (string): Path to the csv file with annotations.
