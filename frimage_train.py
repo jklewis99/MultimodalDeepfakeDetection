@@ -46,24 +46,52 @@ def tensor_file_lists(spec_path, xcep_path, max_files=None, perc=.9):
                                   for p in os.listdir(full_base_dir)])
 
         spec_files_train.extend([(os.path.join(spec_path, p), labelmap[label])
-                                 for p in train_files if p[-5:] == '24.pt'])
+                                 for p in train_files if p[-5:] == '30.pt'])
         xcep_files_train.extend([(os.path.join(xcep_path, p), labelmap[label])
-                                 for p in train_files if p[-5:] == '24.pt'])
+                                 for p in train_files if p[-5:] == '30.pt'])
 
         spec_files_val.extend([(os.path.join(spec_path, p), labelmap[label])
-                               for p in val_files if p[-5:] == '24.pt'])
+                               for p in val_files if p[-5:] == '30.pt'])
         xcep_files_val.extend([(os.path.join(xcep_path, p), labelmap[label])
-                               for p in val_files if p[-5:] == '24.pt'])
+                               for p in val_files if p[-5:] == '30.pt'])
 
     return spec_files_train, xcep_files_train, spec_files_val, xcep_files_val
 
 
-# %%
+# %% the cleanage
 spec_files_train, xcep_files_train, spec_files_val, xcep_files_val = tensor_file_lists(
     spec_path, xcep_path)
 
+spec_files_train_clean = []
+xcep_files_train_clean = []
+
+for f1, f2 in zip(xcep_files_train, spec_files_train):
+    if not torch.isnan(torch.load(f2[0], map_location=torch.device('cpu')).sum()) and not torch.isnan(torch.load(f1[0], map_location=torch.device('cpu')).sum()):
+        xcep_files_train_clean.append(f1)
+        spec_files_train_clean.append(f2)
+xcep_files_train = xcep_files_train_clean
+spec_files_train = spec_files_train_clean
+
+clean_spec_files_val = [spec_files_val[i] for i, (f, label) in enumerate(
+    spec_files_val) if os.path.exists(f)]
+clean_xcep_files_val = [xcep_files_val[i] for i, (f, label) in enumerate(
+    spec_files_val) if os.path.exists(f)]
+spec_files_val = clean_spec_files_val
+xcep_files_val = clean_xcep_files_val
+
+spec_files_val_clean = []
+xcep_files_val_clean = []
+
+for f1, f2 in zip(xcep_files_val, spec_files_val):
+    if not torch.isnan(torch.load(f2[0], map_location=torch.device('cpu')).sum()) and not torch.isnan(torch.load(f1[0], map_location=torch.device('cpu')).sum()):
+        xcep_files_val_clean.append(f1)
+        spec_files_val_clean.append(f2)
+xcep_files_val = xcep_files_val_clean
+spec_files_val = spec_files_val_clean
 
 # %%
+
+
 class FrimagenetDataset(Dataset):
     '''
     FrimageNet data set for concatenating XceptionNet Features and Spectrogram features
@@ -123,8 +151,8 @@ class FrimageNet(nn.Module):
 
     def forward(self, x, hidden):
         y, hidden = self.lstm(x, hidden)
-        y = self.fc1(y)
         y = y[:, -1, :]
+        y = self.fc1(y)
         y = self.act(y)
         y = self.fc2(y)
         y = F.log_softmax(y, dim=1)
