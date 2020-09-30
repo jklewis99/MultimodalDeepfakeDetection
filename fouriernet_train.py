@@ -182,8 +182,8 @@ class FourierDataset(Dataset):
 
 
 # %%
-trainset = FourierDataset(dct_files_train, spc_files_train)
-valset = FourierDataset(dct_files_val, spc_files_val)
+trainset = FourierDataset(dct_files_train, spc_files_train, max_spc_size=0)
+valset = FourierDataset(dct_files_val, spc_files_val, max_spc_size=0)
 
 
 # In[12]:
