@@ -106,6 +106,23 @@ for f1, f2 in zip(dct_files_train, spc_files_train):
 dct_files_train = dct_files_train_clean
 spc_files_train = spc_files_train_clean
 
+clean_spc_files_val = [spc_files_val[i] for i, (f, label) in enumerate(
+    spc_files_val) if os.path.exists(f)]
+clean_dct_files_val = [dct_files_val[i] for i, (f, label) in enumerate(
+    spc_files_val) if os.path.exists(f)]
+spc_files_val = clean_spc_files_val
+dct_files_val = clean_dct_files_val
+
+spc_files_val_clean = []
+dct_files_val_clean = []
+
+for f1, f2 in zip(dct_files_val, spc_files_val):
+    if not torch.isnan(torch.load(f2[0]).sum()) and not np.isnan(np.load(f1[0]).sum()):
+        dct_files_val_clean.append(f1)
+        spc_files_val_clean.append(f2)
+dct_files_val = dct_files_val_clean
+spc_files_val = spc_files_val_clean
+
 # ### `FourierDataset`
 
 # In[8]:
