@@ -303,7 +303,7 @@ model = model.cuda()
 loss_function = nn.NLLLoss().cuda()
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 losses, accs, vlosses, vaccs = train(model, trainset, loss_function,
-                                     optimizer, epochs=1000, batch_size=64)
+                                     optimizer, valset=valset, epochs=1000, batch_size=64)
 
 
 # In[ ]:
