@@ -17,7 +17,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter('runs/fouriernet-val')
+writer = SummaryWriter('runs/fouriernet-val-e-5')
 
 # %%
 labelmap = {'real': 0, 'fake': 1}
@@ -305,8 +305,8 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
                 val_accs = torch.mean(torch.tensor(val_accs))
                 val_losses = torch.mean(torch.tensor(val_losses))
 
-                writer.add_scalar('val/loss', val_accs * 100, epoch)
-                writer.add_scalar('val/acc', val_losses, epoch)
+                writer.add_scalar('val/acc', val_accs * 100, epoch)
+                writer.add_scalar('val/loss', val_losses, epoch)
 
                 vaccs.append(val_accs)
                 vlosses.append(val_losses)
@@ -318,7 +318,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
 
 model = model.cuda()
 loss_function = nn.NLLLoss().cuda()
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
+optimizer = optim.Adam(model.parameters(), lr=1e-5)
 losses, accs, vlosses, vaccs = train(model, trainset, loss_function,
                                      optimizer, valset=valset, epochs=1000, batch_size=64)
 
