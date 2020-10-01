@@ -13,7 +13,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter('runs/lipspeech')
+writer = SummaryWriter('runs/lipspeech-2')
 
 # %%
 labelmap = {'real': 0, 'fake': 1}
@@ -79,6 +79,8 @@ ds_files_val = clean_ds_files_val
 
 # %%
 
+print(sum([1 for a in ln_files_val if a[1] == 1]))
+
 
 class LipSpeechDataset(Dataset):
     '''
@@ -114,36 +116,6 @@ class LipSpeechDataset(Dataset):
 # %%
 trainset = LipSpeechDataset(ds_files_train, ln_files_train, max_ds_size=0)
 valset = LipSpeechDataset(ds_files_val, ln_files_val, max_ds_size=0)
-
-
-class LSTMFC(nn.Module):
-    def __init__(self, input_dim, out_dim, hidden_dim=1024, num_layers=2, device='cuda'):
-        super(LSTMFC, self).__init__()
-
-        self.device = device
-
-        self.num_layers = num_layers
-        self.hidden_dim = hidden_dim
-
-        self.lstm = nn.LSTM(input_dim, hidden_dim,
-                            batch_first=True, num_layers=num_layers)
-        # fully connected
-        self.fc = nn.Linear(hidden_dim, out_dim)
-        self.act = nn.ReLU()
-
-    def forward(self, x, hidden):
-        y, hidden = self.lstm(x, hidden)
-        y = y[:, -1, :]
-        y = self.fc(y)
-        y = self.act(y)
-
-        return y, hidden
-
-    def init_hidden(self, batch_size):
-        weight = next(self.parameters()).data
-        hidden = (weight.new(self.num_layers, batch_size, self.hidden_dim).zero_().to(self.device),
-                  weight.new(self.num_layers, batch_size, self.hidden_dim).zero_().to(self.device))
-        return hidden
 
 
 class LSTMFC(nn.Module):
@@ -309,7 +281,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
     return losses, accs, vlosses, vaccs
 
 
-loss_function = nn.().cuda()
+loss_function = model.cuda()
 optimizer = optim.Adam(model.parameters(), lr=1e-5)
 train(model, trainset, loss_function, optimizer,
       epochs=1000, batch_size=10, valset=valset)
