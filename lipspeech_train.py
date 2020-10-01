@@ -162,13 +162,13 @@ class LSTMFC(nn.Module):
         self.act = nn.ReLU()
 
     def forward(self, x, hidden):
-        y, hidden = self.lstm(x, hidden)
+        y, _ = self.lstm(x, hidden)
         print(y.shape)
         y = y[:, -1, :]
         y = self.fc(y)
         y = self.act(y)
 
-        return y, hidden
+        return y
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters()).data
@@ -199,8 +199,8 @@ class LipSpeechNet(nn.Module):
         return self.lstmfc_ds.init_hidden(batch_size), self.lstmfc_ln.init_hidden(batch_size)
 
     def forward(self, x_ds, x_ln, hidden_ds, hidden_ln):
-        y_ds, hidden_ds = self.lstmfc_ds(x_ds, hidden_ds)
-        y_ln, hidden_ln = self.lstmfc_ln(x_ln, hidden_ln)
+        y_ds, _ = self.lstmfc_ds(x_ds, hidden_ds)
+        y_ln, _ = self.lstmfc_ln(x_ln, hidden_ln)
         y = torch.cat((y_ds, y_ln), 1)
 
         y = self.fc1(y)
@@ -209,7 +209,7 @@ class LipSpeechNet(nn.Module):
         y = self.fc2(y)
         y = self.softmax(y)
 
-        return y, hidden_ds, hidden_ln
+        return y
 
 
 model = LipSpeechNet().cuda()
@@ -227,7 +227,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
         valloader = DataLoader(valset, shuffle=True,
                                batch_size=batch_size, drop_last=True)
 
-    print_every = 5
+    print_every = 50
     i = 0
     losses = []
     accs = []
@@ -239,14 +239,10 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
     running_acc = 0.0
 
     for epoch in range(epochs):
-        hidden_ds, hidden_ln = model.init_hidden(batch_size=batch_size)
         for x_ds, x_ln, labels in trainloader:
-            hidden_ds = tuple([e.data for e in hidden_ds])
-            hidden_ln = tuple([e.data for e in hidden_ln])
+            hidden_ds, hidden_ln = model.init_hidden(batch_size=batch_size)
             # Step 1. Remember that Pytorch accumulates gradients.
             # We need to clear them out before each instance
-            model.zero_grad()
-
             x_ds = x_ds[:, 0].float().to(device)
             x_ln = x_ln[:, 0].float().to(device)
 
@@ -255,7 +251,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
             optimizer.zero_grad()
 
             # Step 2. Run our forward pass.
-            out, hidden_ds, hidden_ln = model(x_ds, x_ln, hidden_ds, hidden_ln)
+            out = model(x_ds, x_ln, hidden_ds, hidden_ln)
             # out = out.add(epsilon)
 
             # Step 3. Compute the loss, gradients, and update the parameters by
@@ -313,7 +309,7 @@ def train(model, trainset, loss_function, optimizer, valset=None, epochs=1000, b
     return losses, accs, vlosses, vaccs
 
 
-loss_function = nn.NLLLoss().cuda()
+loss_function = nn.().cuda()
 optimizer = optim.Adam(model.parameters(), lr=1e-5)
 train(model, trainset, loss_function, optimizer,
       epochs=1000, batch_size=10, valset=valset)
